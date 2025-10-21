@@ -1,20 +1,250 @@
 {% extends "base_landing.html" %}
+{% load static socialaccount %}
 
 {% block content %}
-<div class="isolate relative px-6 mt-16 sm:mt-24 lg:px-8">
-  <div class="isolate relative px-6 mt-16 sm:mt-24 lg:px-8">
-    <div class="mx-auto text-center">
-        <h1 class="mx-auto mb-6 max-w-2xl text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-          Daily reminder for the pages that need polish.
-        </h1>
-        <div class="flex flex-col gap-x-6 justify-center items-center mt-10 md:flex-row md:items-end">
-          <a
-            class="block px-3 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-            href="{% url 'account_signup' %}"
-          >
-            Get Started
+
+<!-- Hero Section -->
+<div class="relative bg-white">
+  <div class="px-6 py-20 mx-auto max-w-7xl sm:py-32">
+    <div class="mx-auto max-w-3xl text-center">
+      <h1 class="mb-4 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
+        Never Let Your Website <br/>
+        <span class="text-blue-600">Go Stale</span>
+      </h1>
+      <p class="mx-auto mt-6 max-w-xl text-lg leading-8 text-gray-600">
+        Get daily email reminders to systematically review and polish every page on your website. Keep your content fresh, relevant, and up-to-date.
+      </p>
+      <div class="flex flex-wrap gap-y-2 gap-x-6 justify-center items-center mt-8 text-lg text-gray-700">
+        <div class="flex gap-x-2 items-center">
+          <svg class="flex-none w-5 h-5 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+          <span><span class="font-bold">Daily</span> email reminders</span>
+        </div>
+        <div class="flex gap-x-2 items-center">
+          <svg class="flex-none w-5 h-5 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+          <span><span class="font-bold">Automatic</span> page tracking</span>
+        </div>
+        <div class="flex gap-x-2 items-center">
+          <svg class="flex-none w-5 h-5 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+          <span><span class="font-bold">Customizable</span> review cadence</span>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-4 justify-center items-center mt-8">
+        <a href="{% url 'account_signup' %}" class="inline-flex gap-x-2 items-center px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-full shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+          <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Start Free - No Credit Card</span>
+        </a>
+      </div>
+      <p class="mt-6 text-sm text-gray-500">
+        100% Free • No Hidden Costs
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Social Proof Section -->
+<div class="py-10 bg-gradient-to-b from-white to-gray-50 sm:py-20">
+  <div class="px-6 mx-auto max-w-7xl lg:px-8">
+    <div class="mx-auto max-w-3xl text-center">
+      <div class="inline-flex gap-x-2 items-center px-4 py-2 mb-4 text-sm font-medium text-blue-700 bg-blue-50 rounded-full border border-blue-200">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+        </svg>
+        <span>Trusted by Website Owners</span>
+      </div>
+      <h2 class="text-2xl font-bold tracking-tight leading-tight text-gray-900 sm:text-3xl">
+        Helping keep websites fresh for<br/>
+        <span class="text-blue-600">growing businesses and projects</span>
+      </h2>
+    </div>
+    <div class="grid grid-cols-2 gap-6 mx-auto mt-12 max-w-lg sm:gap-8 sm:grid-cols-2 lg:max-w-4xl lg:grid-cols-4">
+        <div class="flex flex-col col-span-1 gap-y-4 items-center p-6 text-center bg-white rounded-xl border border-gray-200 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-200">
+          <a class="flex justify-center items-center w-24 h-24" href="https://tuxseo.com" target="_blank" rel="noopener">
+            <img src="{% static 'vendors/images/tuxseo.png' %}" alt="TuxSEO">
+          </a>
+          <a href="https://tuxseo.com" target="_blank" rel="noopener" class="text-sm font-semibold text-gray-900 transition-colors hover:text-blue-600">TuxSEO</a>
+        </div>
+        <div class="flex flex-col col-span-1 gap-y-4 items-center p-6 text-center bg-white rounded-xl border border-gray-200 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-200">
+          <a class="flex justify-center items-center w-24 h-24" href="https://gettjalerts.com" target="_blank" rel="noopener">
+            <img src="{% static 'vendors/images/tjalerts.png' %}" alt="Tech Job Alerts">
+          </a>
+          <a href="https://gettjalerts.com" target="_blank" rel="noopener" class="text-sm font-semibold text-gray-900 transition-colors hover:text-blue-600">Tech Job Alerts</a>
+        </div>
+        <div class="flex flex-col col-span-1 gap-y-4 items-center p-6 text-center bg-white rounded-xl border border-gray-200 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-200">
+          <a class="flex justify-center items-center w-24 h-24" href="https://builtwithdjango.com" target="_blank" rel="noopener">
+            <img class="object-cover w-24 h-24 bg-gray-100 rounded-full" src="{% static 'vendors/images/bwd.png' %}" alt="Built with Django">
+          </a>
+          <a href="https://builtwithdjango.com" target="_blank" rel="noopener" class="text-sm font-semibold text-gray-900 transition-colors hover:text-blue-600">Built with Django</a>
+        </div>
+        <div class="flex flex-col col-span-1 gap-y-4 items-center p-6 text-center bg-white rounded-xl border border-gray-200 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-200">
+          <a class="flex justify-center items-center w-24 h-24" href="https://gettalentleads.com" target="_blank" rel="noopener">
+            <img src="{% static 'vendors/images/talentleads.png' %}" alt="Talent Leads">
+          </a>
+          <a href="https://gettalentleads.com" target="_blank" rel="noopener" class="text-sm font-semibold text-gray-900 transition-colors hover:text-blue-600">Talent Leads</a>
+        </div>
+    </div>
+  </div>
+</div>
+
+<!-- Features Section -->
+<div class="px-6 py-12 mx-auto max-w-7xl sm:py-16">
+    <div class="mx-auto max-w-3xl text-center">
+        <h2 class="text-base font-medium leading-7 text-blue-600">Complete Review System</h2>
+        <p class="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Keep Every Page Fresh</p>
+        <p class="mt-4 text-lg leading-8 text-gray-600">
+            A systematic approach to website maintenance
+        </p>
+    </div>
+
+    <div class="grid gap-8 mt-12 text-left md:grid-cols-2">
+        <!-- Feature 1: Sitemap Integration -->
+        <div class="p-6 bg-white rounded-lg border border-gray-200 shadow-sm transition-colors hover:border-blue-200">
+            <div class="flex gap-x-3 items-center mb-4">
+                <div class="flex justify-center items-center w-10 h-10 bg-blue-100 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold tracking-tight text-gray-900">Automatic Page Discovery</h3>
+            </div>
+            <ul class="space-y-2 text-base text-gray-600">
+                <li class="flex gap-x-2">
+                    <svg class="flex-none mt-1 w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    <span>Add your sitemap URL</span>
+                </li>
+                <li class="flex gap-x-2">
+                    <svg class="flex-none mt-1 w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    <span>All pages automatically tracked</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Feature 2: Custom Cadence -->
+        <div class="p-6 bg-white rounded-lg border border-gray-200 shadow-sm transition-colors hover:border-blue-200">
+            <div class="flex gap-x-3 items-center mb-4">
+                <div class="flex justify-center items-center w-10 h-10 bg-blue-100 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold tracking-tight text-gray-900">Flexible Review Schedule</h3>
+            </div>
+            <ul class="space-y-2 text-base text-gray-600">
+                <li class="flex gap-x-2">
+                    <svg class="flex-none mt-1 w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    <span>Daily, weekly, or custom cadence</span>
+                </li>
+                <li class="flex gap-x-2">
+                    <svg class="flex-none mt-1 w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    <span>Control pages per email</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Feature 3: Email Reminders -->
+        <div class="p-6 bg-white rounded-lg border border-gray-200 shadow-sm transition-colors hover:border-blue-200">
+            <div class="flex gap-x-3 items-center mb-4">
+                <div class="flex justify-center items-center w-10 h-10 bg-blue-100 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold tracking-tight text-gray-900">Smart Email Reminders</h3>
+            </div>
+            <ul class="space-y-2 text-base text-gray-600">
+                <li class="flex gap-x-2">
+                    <svg class="flex-none mt-1 w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    <span>Direct links to pages</span>
+                </li>
+                <li class="flex gap-x-2">
+                    <svg class="flex-none mt-1 w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    <span>One-click mark as reviewed</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Feature 4: Progress Tracking -->
+        <div class="p-6 bg-white rounded-lg border border-gray-200 shadow-sm transition-colors hover:border-blue-200">
+            <div class="flex gap-x-3 items-center mb-4">
+                <div class="flex justify-center items-center w-10 h-10 bg-blue-100 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold tracking-tight text-gray-900">Track Your Progress</h3>
+            </div>
+            <ul class="space-y-2 text-base text-gray-600">
+                <li class="flex gap-x-2">
+                    <svg class="flex-none mt-1 w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    <span>See review history</span>
+                </li>
+                <li class="flex gap-x-2">
+                    <svg class="flex-none mt-1 w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    <span>Dashboard overview</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- How It Works Section -->
+<div class="px-6 py-12 bg-gray-50 sm:py-16">
+    <div class="mx-auto max-w-5xl">
+        <div class="text-center">
+            <h2 class="text-base font-medium leading-7 text-blue-600">Simple Process</h2>
+            <p class="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">How It Works</p>
+            <p class="mt-4 text-lg leading-8 text-gray-600">
+                From setup to systematic review in minutes
+            </p>
+        </div>
+        <div class="grid grid-cols-1 gap-6 mt-12 text-left sm:grid-cols-3">
+            <div class="p-6 bg-white rounded-lg border border-gray-200 shadow-sm transition-colors hover:border-blue-200">
+                <div class="flex justify-center items-center mb-4 w-12 h-12 text-lg font-bold text-white bg-blue-600 rounded-full">1</div>
+                <h4 class="text-lg font-bold text-gray-900">Add Your Sitemap</h4>
+                <p class="mt-2 text-gray-600">Enter your sitemap URL and we'll automatically discover all your pages</p>
+            </div>
+            <div class="p-6 bg-white rounded-lg border border-gray-200 shadow-sm transition-colors hover:border-blue-200">
+                <div class="flex justify-center items-center mb-4 w-12 h-12 text-lg font-bold text-white bg-blue-600 rounded-full">2</div>
+                <h4 class="text-lg font-bold text-gray-900">Set Your Schedule</h4>
+                <p class="mt-2 text-gray-600">Choose how often you want reminders and how many pages per email</p>
+            </div>
+            <div class="p-6 bg-white rounded-lg border border-gray-200 shadow-sm transition-colors hover:border-blue-200">
+                <div class="flex justify-center items-center mb-4 w-12 h-12 text-lg font-bold text-white bg-blue-600 rounded-full">3</div>
+                <h4 class="text-lg font-bold text-gray-900">Review & Polish</h4>
+                <p class="mt-2 text-gray-600">Get emails with pages to review, update them, and mark as complete</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CTA Section -->
+<div class="bg-white">
+  <div class="px-6 py-12 mx-auto max-w-7xl sm:py-16 lg:px-8">
+    <div class="overflow-hidden relative px-6 py-12 bg-gray-800 shadow-xl sm:rounded-lg sm:px-12 sm:py-16">
+      <div class="mx-auto max-w-2xl text-center">
+        <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Ready to Keep Your Website Fresh?</h2>
+        <p class="mt-4 text-lg leading-8 text-gray-300">
+          Stop letting important pages go stale. Start systematically reviewing and improving your content today.
+        </p>
+        <div class="flex flex-wrap gap-4 justify-center items-center mt-8">
+          <a href="{% url 'account_signup' %}" class="inline-flex gap-x-2 items-center px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-full shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+            <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Start Free - No Credit Card</span>
           </a>
         </div>
+        <p class="mt-6 text-sm text-gray-300">
+          100% Free • No Hidden Costs
+        </p>
+      </div>
     </div>
   </div>
 </div>
