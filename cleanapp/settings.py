@@ -281,8 +281,8 @@ ANYMAIL = {
     "MAILGUN_API_KEY": MAILGUN_API_KEY,
     "MAILGUN_SENDER_DOMAIN": "mg.cleanapp.app",
 }
-DEFAULT_FROM_EMAIL = "Rasul from Cleanapp <hello@cleanapp.app>"
-SERVER_EMAIL = "Cleanapp Errors <error@cleanapp.app>"
+DEFAULT_FROM_EMAIL = "Rasul from Cleanapp <rasul@cleanapp.dev>"
+SERVER_EMAIL = "Cleanapp Errors <error@cleanapp.dev>"
 
 if DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
