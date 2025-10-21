@@ -96,21 +96,19 @@
           <!-- Desktop Auth Buttons -->
           <div class="flex gap-2 items-center ml-auto">
             {% if user.is_authenticated %}
-            <a href="{% url 'home' %}" class="text-sm font-semibold text-gray-900 hover:text-red-600"></a>
+              <a href="{% url 'home' %}" class="inline-block rounded-full border-[1.5px] border-gray-300 px-6 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-100">Dashboard</a>
             {% else %}
-            <div class="hidden gap-2 items-center lg:flex">
               <a href="{% url 'account_login' %}" class="rounded-full border-[1.5px] border-gray-300 px-5 py-3 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100">
                 Sign In
               </a>
               <a href="{% url 'account_signup' %}" class="px-5 py-3 text-sm font-semibold text-white bg-blue-600 rounded-full transition-colors hover:bg-blue-700">
                 Start for Free
               </a>
-            </div>
             {% endif %}
           </div>
 
           <!-- Mobile Menu Button -->
-          <div class="lg:hidden" data-controller="dropdown">
+          <div class="ml-auto lg:hidden" data-controller="dropdown">
             <button class="flex relative justify-center items-center w-10 h-10 rounded-full border border-gray-200"
                     aria-label="Toggle mobile menu"
                     data-action="dropdown#toggle click@window->dropdown#hide">
