@@ -279,7 +279,7 @@ if GITHUB_CLIENT_ID != "":
 MAILGUN_API_KEY = env("MAILGUN_API_KEY", default="")
 ANYMAIL = {
     "MAILGUN_API_KEY": MAILGUN_API_KEY,
-    "MAILGUN_SENDER_DOMAIN": "mg.cleanapp.app",
+    "MAILGUN_SENDER_DOMAIN": "mg.cleanapp.dev",
 }
 DEFAULT_FROM_EMAIL = "Rasul from Cleanapp <rasul@cleanapp.dev>"
 SERVER_EMAIL = "Cleanapp Errors <error@cleanapp.dev>"
