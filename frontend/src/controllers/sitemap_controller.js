@@ -2,7 +2,18 @@ import { Controller } from "@hotwired/stimulus";
 import { showMessage } from "../utils/messages";
 
 export default class extends Controller {
-    static targets = ["item"];
+    static targets = ["item", "formContainer", "toggleButton"];
+
+    toggleForm(event) {
+        event.preventDefault();
+        this.formContainerTarget.classList.toggle("hidden");
+
+        if (this.formContainerTarget.classList.contains("hidden")) {
+            this.toggleButtonTarget.textContent = "Add Sitemap";
+        } else {
+            this.toggleButtonTarget.textContent = "Cancel";
+        }
+    }
 
     async delete(event) {
         event.preventDefault();
