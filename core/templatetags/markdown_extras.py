@@ -20,3 +20,8 @@ def markdown(value):
 @stringfilter
 def replace_quotes(value):
     return value.replace('"', "'")
+
+
+@register.filter
+def lookup(dictionary, key):
+    return dictionary.get(key)

@@ -15,3 +15,8 @@ class BlogPostStatus(models.TextChoices):
     DRAFT = "draft"
     PUBLISHED = "published"
 
+
+class ReviewCadence(models.TextChoices):
+    DAILY = "daily", "Daily"
+    WEEKLY = "weekly", "Weekly"
+    MONTHLY = "monthly", "Monthly"

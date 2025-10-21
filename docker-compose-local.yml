@@ -129,6 +129,11 @@ services:
       exit 0;
       "
 
+  mjml:
+    image: danihodovic/mjml-server
+    ports:
+      - "15500:15500"
+
 
 volumes:
   postgres_data:

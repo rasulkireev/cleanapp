@@ -11,7 +11,7 @@ from allauth.account.models import EmailAddress
 from django_q.tasks import async_task
 from allauth.account.utils import send_email_confirmation
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.shortcuts import redirect
 from django.conf import settings
@@ -26,8 +26,8 @@ from djstripe import models as djstripe_models
 from core.choices import ProfileStates
 
 
-from core.forms import ProfileUpdateForm, SitemapForm
-from core.models import Profile, BlogPost, Sitemap
+from core.forms import ProfileUpdateForm, SitemapForm, SitemapSettingsForm
+from core.models import Profile, BlogPost, Sitemap, Page, Feedback
 
 from cleanapp.utils import get_cleanapp_logger
 
@@ -36,8 +36,8 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 
 logger = get_cleanapp_logger(__name__)
 
-class HomeView(TemplateView):
-    template_name = "pages/home.html"
+class LandingPageView(TemplateView):
+    template_name = "pages/landing-page.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -58,7 +58,7 @@ class HomeView(TemplateView):
                 "core.tasks.try_create_posthog_alias",
                 profile_id=profile.id,
                 cookies=self.request.COOKIES,
-                source_function="HomeView - get_context_data",
+                source_function="LandingPageView - get_context_data",
                 group="Create Posthog Alias",
             )
 
@@ -66,9 +66,9 @@ class HomeView(TemplateView):
         return context
 
 
-class UserHomeView(LoginRequiredMixin, SuccessMessageMixin, TemplateView):
+class HomeView(LoginRequiredMixin, SuccessMessageMixin, TemplateView):
     login_url = "account_login"
-    template_name = "pages/user-home.html"
+    template_name = "pages/home.html"
     success_message = "Sitemap URL added successfully"
 
     def get_context_data(self, **kwargs):
@@ -92,11 +92,26 @@ class UserHomeView(LoginRequiredMixin, SuccessMessageMixin, TemplateView):
             )
 
             messages.success(request, self.success_message)
-            return redirect('user_home')
+            return redirect('home')
         else:
             context = self.get_context_data(**kwargs)
             context['form'] = form
             return self.render_to_response(context)
+
+
+class SitemapDetailView(LoginRequiredMixin, DetailView):
+    login_url = "account_login"
+    model = Sitemap
+    template_name = "pages/sitemap_detail.html"
+    context_object_name = "sitemap"
+
+    def get_queryset(self):
+        return Sitemap.objects.filter(profile=self.request.user.profile)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['pages'] = Page.objects.filter(sitemap=self.object).order_by('-needs_review', 'url')
+        return context
 
 
 class AccountSignupView(SignupView):
@@ -151,11 +166,51 @@ class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         email_address = EmailAddress.objects.get_for_user(user, user.email)
         context["email_verified"] = email_address.verified
         context["resend_confirmation_url"] = reverse("resend_confirmation")
-        context["has_subscription"] = user.profile.has_product_or_subscription
+        context["has_subscription"] = user.profile.has_active_subscription
 
+        sitemaps = Sitemap.objects.filter(profile=user.profile).order_by('-created_at')
+        sitemap_forms = {}
+        for sitemap in sitemaps:
+            sitemap_forms[sitemap.id] = SitemapSettingsForm(instance=sitemap, prefix=f'sitemap_{sitemap.id}')
 
+        context["sitemaps"] = sitemaps
+        context["sitemap_forms"] = sitemap_forms
 
         return context
+
+    def post(self, request, *args, **kwargs):
+        if 'save_sitemap_settings' in request.POST:
+            sitemaps = Sitemap.objects.filter(profile=request.user.profile)
+            updated_count = 0
+            errors = []
+
+            for sitemap in sitemaps:
+                form = SitemapSettingsForm(request.POST, instance=sitemap, prefix=f'sitemap_{sitemap.id}')
+                if form.is_valid():
+                    form.save()
+                    updated_count += 1
+
+                    logger.info(
+                        "Sitemap settings updated",
+                        profile_id=request.user.profile.id,
+                        email=request.user.email,
+                        sitemap_id=sitemap.id,
+                        pages_per_review=sitemap.pages_per_review,
+                        review_cadence=sitemap.review_cadence
+                    )
+                else:
+                    errors.append(f"Error updating {sitemap.sitemap_url}")
+
+            if updated_count > 0:
+                messages.success(request, f"Successfully updated settings for {updated_count} sitemap(s)")
+
+            if errors:
+                for error in errors:
+                    messages.error(request, error)
+
+            return redirect('settings')
+
+        return super().post(request, *args, **kwargs)
 
 
 
@@ -269,3 +324,119 @@ def test_mjml(request):
     email.send()
 
     return HttpResponse("Email sent")
+
+
+@login_required
+def review_page_redirect(request, page_id):
+    from django.utils import timezone
+
+    try:
+        page = Page.objects.get(id=page_id, profile=request.user.profile)
+
+        page.reviewed = True
+        page.reviewed_at = timezone.now()
+        page.save(update_fields=["reviewed", "reviewed_at"])
+
+        return redirect(page.url)
+    except Page.DoesNotExist:
+        messages.error(request, "Page not found or you don't have permission to access it.")
+        return redirect("home")
+
+
+class AdminPanelView(UserPassesTestMixin, TemplateView):
+    template_name = "pages/admin-panel.html"
+    login_url = "account_login"
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def handle_no_permission(self):
+        messages.error(self.request, "You don't have permission to access this page.")
+        return redirect("home")
+
+    def get_context_data(self, **kwargs):
+        from django.db.models import Count, Q
+        from django.contrib.auth.models import User
+        from django.utils import timezone
+        from datetime import timedelta
+
+        context = super().get_context_data(**kwargs)
+
+        now = timezone.now()
+        week_ago = now - timedelta(days=7)
+        month_ago = now - timedelta(days=30)
+
+        total_users = User.objects.count()
+        total_profiles = Profile.objects.count()
+        total_sitemaps = Sitemap.objects.count()
+        total_pages = Page.objects.count()
+        total_feedback = Feedback.objects.count()
+
+        new_users_week = User.objects.filter(date_joined__gte=week_ago).count()
+        new_users_month = User.objects.filter(date_joined__gte=month_ago).count()
+
+        subscribed_users = Profile.objects.filter(
+            state__in=[ProfileStates.SUBSCRIBED, ProfileStates.CANCELLED]
+        ).count()
+
+        pages_reviewed = Page.objects.filter(reviewed=True).count()
+        pages_unreviewed = Page.objects.filter(reviewed=False).count()
+
+        recent_users = User.objects.select_related('profile').order_by('-date_joined')[:10]
+        recent_feedback = Feedback.objects.select_related('profile__user').order_by('-created_at')[:10]
+        recent_sitemaps = Sitemap.objects.select_related('profile__user').order_by('-created_at')[:10]
+
+        top_users_by_pages = Profile.objects.annotate(
+            page_count=Count('pages')
+        ).filter(page_count__gt=0).order_by('-page_count')[:10]
+
+        context.update({
+            'total_users': total_users,
+            'total_profiles': total_profiles,
+            'total_sitemaps': total_sitemaps,
+            'total_pages': total_pages,
+            'total_feedback': total_feedback,
+            'new_users_week': new_users_week,
+            'new_users_month': new_users_month,
+            'subscribed_users': subscribed_users,
+            'pages_reviewed': pages_reviewed,
+            'pages_unreviewed': pages_unreviewed,
+            'recent_users': recent_users,
+            'recent_feedback': recent_feedback,
+            'recent_sitemaps': recent_sitemaps,
+            'top_users_by_pages': top_users_by_pages,
+        })
+
+        logger.info(
+            "Admin panel accessed",
+            email=self.request.user.email,
+            profile_id=self.request.user.profile.id
+        )
+
+        return context
+
+
+@login_required
+def send_test_email(request):
+    if not request.user.is_superuser:
+        messages.error(request, "You don't have permission to perform this action.")
+        return redirect("home")
+
+    if request.method == "POST":
+        profile_id = request.user.profile.id
+
+        async_task(
+            "core.tasks.send_page_email_to_profile",
+            profile_id=profile_id,
+            group="Send Test Email",
+        )
+
+        logger.info(
+            "Test email queued",
+            email=request.user.email,
+            profile_id=profile_id,
+        )
+
+        messages.success(request, f"Test email queued and will be sent to {request.user.email}!")
+
+    return redirect("admin_panel")

@@ -77,7 +77,7 @@ INSTALLED_APPS = [
     "widget_tweaks",
     "anymail",
     "djstripe",
-    
+
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -85,7 +85,7 @@ INSTALLED_APPS = [
     "django_q",
     "django_extensions",
     "mjml",
-    
+
     "django_structlog",
     "core.apps.CoreConfig",
 ]
@@ -118,7 +118,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "core.context_processors.current_state",
                 "core.context_processors.posthog_api_key",
-                
+
                 "core.context_processors.available_social_providers",
             ],
         },
@@ -494,10 +494,9 @@ DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"
 
 
 MJML_BACKEND_MODE = "httpserver"
+MJML_URL = env("MJML_URL", default="")
 MJML_HTTPSERVERS = [
     {
-        "URL": "https://api.mjml.io/v1/render",
-        "HTTP_AUTH": (env('MJML_APPLICATION_ID'), env("MJML_SECRET")),
+        "URL": f"{MJML_URL}/v1/render",
     }
 ]
-

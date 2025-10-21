@@ -4,7 +4,7 @@ from django.urls import reverse
 from django_q.tasks import async_task
 
 from core.base_models import BaseModel
-from core.choices import ProfileStates , BlogPostStatus
+from core.choices import ProfileStates , BlogPostStatus, ReviewCadence
 from core.model_utils import generate_random_key
 
 
@@ -169,6 +169,16 @@ class Sitemap(BaseModel):
     sitemap_url = models.URLField(
         help_text="The sitemap text",
     )
+    pages_per_review = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of pages to review per email"
+    )
+    review_cadence = models.CharField(
+        max_length=20,
+        choices=ReviewCadence.choices,
+        default=ReviewCadence.DAILY,
+        help_text="How often to send review emails"
+    )
 
     def __str__(self):
         return f"{self.sitemap_url} - <{self.profile}>"
@@ -197,6 +207,10 @@ class Page(BaseModel):
     )
     reviewed = models.BooleanField(default=False)
     reviewed_at = models.DateTimeField(null=True, blank=True)
+    needs_review = models.BooleanField(
+        default=True,
+        help_text="Whether this page needs to be reviewed"
+    )
 
     def __str__(self):
         return f"{self.url} - <{self.profile}>"

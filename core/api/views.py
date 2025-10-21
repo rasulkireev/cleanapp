@@ -3,7 +3,7 @@ from ninja import NinjaAPI
 from ninja.errors import HttpError
 
 from core.api.auth import session_auth, superuser_api_auth
-from core.models import Feedback, BlogPost
+from core.models import Feedback, BlogPost, Sitemap, Page
 from core.api.schemas import (
     SubmitFeedbackIn,
     SubmitFeedbackOut,
@@ -11,6 +11,9 @@ from core.api.schemas import (
     BlogPostOut,
     ProfileSettingsOut,
     UserSettingsOut,
+    DeleteSitemapOut,
+    BulkUpdatePagesIn,
+    BulkUpdatePagesOut,
 )
 
 from cleanapp.utils import get_cleanapp_logger
@@ -70,3 +73,78 @@ def user_settings(request: HttpRequest):
             exc_info=True,
         )
         raise HttpError(500, "An unexpected error occurred.")
+
+
+@api.delete("/sitemaps/{sitemap_id}", response=DeleteSitemapOut, auth=[session_auth])
+def delete_sitemap(request: HttpRequest, sitemap_id: int):
+    profile = request.auth
+    try:
+        sitemap = Sitemap.objects.get(id=sitemap_id, profile=profile)
+        sitemap_url = sitemap.sitemap_url
+        sitemap.delete()
+
+        logger.info(
+            "Sitemap deleted",
+            profile_id=profile.id,
+            email=profile.user.email,
+            sitemap_id=sitemap_id,
+            sitemap_url=sitemap_url
+        )
+
+        return {"success": True, "message": "Sitemap deleted successfully"}
+    except Sitemap.DoesNotExist:
+        logger.warning(
+            "Sitemap not found for deletion",
+            profile_id=profile.id,
+            email=profile.user.email,
+            sitemap_id=sitemap_id
+        )
+        raise HttpError(404, "Sitemap not found")
+    except Exception as e:
+        logger.error(
+            "Failed to delete sitemap",
+            error=str(e),
+            profile_id=profile.id,
+            sitemap_id=sitemap_id,
+            exc_info=True
+        )
+        raise HttpError(500, "Failed to delete sitemap")
+
+
+@api.post("/pages/bulk-update", response=BulkUpdatePagesOut, auth=[session_auth])
+def bulk_update_pages(request: HttpRequest, data: BulkUpdatePagesIn):
+    profile = request.auth
+    try:
+        pages = Page.objects.filter(
+            id__in=data.page_ids,
+            profile=profile
+        )
+
+        if not pages.exists():
+            logger.warning(
+                "No pages found for bulk update",
+                profile_id=profile.id,
+                email=profile.user.email,
+                page_ids=data.page_ids
+            )
+            raise HttpError(404, "No pages found")
+
+        updated_count = pages.update(needs_review=data.needs_review)
+
+        action = "marked as no need to review" if not data.needs_review else "marked as need to review"
+        return {
+            "success": True,
+            "message": f"{updated_count} page(s) {action}",
+            "updated_count": updated_count
+        }
+    except HttpError:
+        raise
+    except Exception as e:
+        logger.error(
+            "Failed to bulk update pages",
+            error=str(e),
+            profile_id=profile.id,
+            page_ids=data.page_ids,
+            exc_info=True
+        )
+        raise HttpError(500, "Failed to update pages")

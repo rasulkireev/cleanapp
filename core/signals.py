@@ -5,7 +5,7 @@ from django.dispatch import receiver
 from django_q.tasks import async_task
 
 from core.tasks import add_email_to_buttondown
-from core.models import Profile, ProfileStates
+from core.models import Profile, ProfileStates, Sitemap
 from cleanapp.utils import get_cleanapp_logger
 
 logger = get_cleanapp_logger(__name__)
@@ -50,3 +50,12 @@ def email_confirmation_callback(sender, request, user, **kwargs):
         if email:
             async_task(add_email_to_buttondown, email, tag="user")
 
+
+@receiver(post_save, sender=Sitemap)
+def process_sitemap_on_creation(sender, instance, created, **kwargs):
+    if created:
+        async_task(
+            "core.tasks.process_sitemap_pages",
+            sitemap_id=instance.id,
+            group="Process Sitemap",
+        )

@@ -1,6 +1,7 @@
-{% extends 'base.html' %}
+{% extends 'base_app.html' %}
 {% load webpack_loader static %}
 {% load widget_tweaks %}
+{% load markdown_extras %}
 
 {% block meta %}
   <title>Cleanapp - User Settings</title>
@@ -39,19 +40,8 @@
         </div>
       </div>
     </div>
-    {% else %}
-    <div class="p-6 mt-6 mb-8 bg-gray-50 rounded-lg">
-      <h3 class="mb-4 text-lg font-medium leading-6 text-gray-900">Manage Your Subscription</h3>
-      <div class="rounded-md shadow">
-        <a
-          href="{% url 'create_customer_portal_session' %}"
-          class="flex justify-center items-center px-5 py-3 text-base font-medium text-white bg-blue-600 rounded-md border border-transparent hover:bg-blue-700">
-          Update Subscription
-        </a>
-      </div>
-    </div>
     {% endif %}
-    
+
 
     <div class="px-6 py-4">
       <div class="flex flex-col">
@@ -98,6 +88,55 @@
         <div class="border-t border-gray-200"></div>
       </div>
     </div>
+
+    {% if sitemaps %}
+    <div class="px-6 py-4">
+      <div class="flex flex-col">
+        <h3 class="mb-6 text-lg font-medium leading-6 text-gray-900">Sitemap Review Settings</h3>
+        <p class="mb-4 text-sm text-gray-600">Configure how often you want to receive review emails and how many pages to include for each sitemap.</p>
+
+        <form action="{% url 'settings' %}" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="save_sitemap_settings" value="true">
+
+          {% for sitemap in sitemaps %}
+          <div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div class="mb-3">
+              <h4 class="text-sm font-medium text-gray-900 break-all">{{ sitemap.sitemap_url }}</h4>
+              <p class="text-xs text-gray-500">Added {{ sitemap.created_at|date:"M d, Y" }}</p>
+            </div>
+
+            {% with form=sitemap_forms|lookup:sitemap.id %}
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label for="id_sitemap_{{ sitemap.id }}-pages_per_review" class="block mb-1 text-sm font-medium text-gray-700">
+                  Pages per review email
+                </label>
+                {{ form.pages_per_review }}
+                <p class="mt-1 text-xs text-gray-500">Number of pages to include in each review email (1-50)</p>
+              </div>
+
+              <div>
+                <label for="id_sitemap_{{ sitemap.id }}-review_cadence" class="block mb-1 text-sm font-medium text-gray-700">
+                  Review cadence
+                </label>
+                {{ form.review_cadence }}
+                <p class="mt-1 text-xs text-gray-500">How often to send review emails</p>
+              </div>
+            </div>
+            {% endwith %}
+          </div>
+          {% endfor %}
+
+          <div class="mt-6 text-right">
+            <button type="submit" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+              Save All Sitemap Settings
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
 
   </div>
 {% endblock content %}
