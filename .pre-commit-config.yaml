@@ -1,0 +1,30 @@
+exclude: .*migrations\/.*
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+    -   id: check-yaml
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.12.0
+  hooks:
+    - id: ruff-check
+      args: [ --fix ]
+    - id: ruff-format
+
+- repo: https://github.com/djlint/djLint
+  rev: v1.36.4
+  hooks:
+    - id: djlint-django
+
+- repo: https://github.com/python-poetry/poetry-plugin-export
+  rev: '1.9.0'
+  hooks:
+    - id: poetry-export
+      args: [
+        "-f", "requirements.txt",
+        "-o", "requirements.txt",
+        "--without-hashes"
+      ]
