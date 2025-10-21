@@ -38,3 +38,19 @@ class ProfileSettingsOut(Schema):
 
 class UserSettingsOut(Schema):
     profile: ProfileSettingsOut
+
+
+class DeleteSitemapOut(Schema):
+    success: bool
+    message: str
+
+
+class BulkUpdatePagesIn(Schema):
+    page_ids: list[int]
+    needs_review: bool
+
+
+class BulkUpdatePagesOut(Schema):
+    success: bool
+    message: str
+    updated_count: int

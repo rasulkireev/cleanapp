@@ -1,0 +1,113 @@
+{% load mjml %}
+
+{% mjml %}
+<mjml>
+  <mj-head>
+    <mj-style>
+      .page-url {
+        display: inline-flex;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 20px;
+        font-weight: 500;
+        color: #374151;
+        background-color: #F3F4F6;
+        word-break: break-all;
+        margin-bottom: 12px;
+      }
+      .sitemap-url {
+        font-size: 13px;
+        color: #6b7280;
+        word-break: break-all;
+      }
+      .btn-review {
+        display: inline-block;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        background-color: #EF4444;
+        text-decoration: none;
+      }
+      .btn-review:hover {
+        background-color: #DC2626;
+      }
+    </mj-style>
+  </mj-head>
+
+  <mj-body background-color="#f3f4f6">
+    <mj-section background-color="#ffffff" padding="40px 20px">
+      <mj-column>
+        <mj-text
+          font-size="28px"
+          font-weight="bold"
+          color="#1f2937"
+          align="center"
+          padding="0 0 20px 0"
+        >
+          Cleanapp
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section background-color="#ffffff" padding="0 20px 20px 20px">
+      <mj-column>
+        <mj-text font-size="18px" color="#1f2937" font-weight="600" padding="0 0 10px 0">
+          Hi {{ user.first_name|default:user.username }},
+        </mj-text>
+        <mj-text font-size="16px" color="#4b5563" line-height="24px" padding="0 0 20px 0">
+          It's time to review pages from your sitemap{{ total_sitemaps|pluralize }}! You have {{ total_pages }} page{{ total_pages|pluralize }} to review from {{ total_sitemaps }} sitemap{{ total_sitemaps|pluralize }}:
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    {% for sitemap_data in sitemaps_with_pages %}
+    <mj-section background-color="#ffffff" padding="0 20px 30px 20px">
+      <mj-column>
+        <mj-text font-size="16px" color="#1f2937" font-weight="600" padding="0 0 10px 0">
+          Sitemap: {{ sitemap_data.sitemap.sitemap_url }}
+        </mj-text>
+        <mj-text font-size="14px" color="#6b7280" padding="0 0 10px 0">
+          {{ sitemap_data.pages_count }} page{{ sitemap_data.pages_count|pluralize }} to review:
+        </mj-text>
+
+        {% for page in sitemap_data.pages %}
+        <mj-table padding="0 0 16px 0">
+          <tr>
+            <td style="padding: 16px 20px; border-radius: 8px; font-size: 14px; line-height: 20px; font-weight: 500; color: #374151; background-color: #F3F4F6; word-break: break-all; width: 100%;">
+              {{ page.url }}
+            </td>
+            <td style="padding-left: 12px; white-space: nowrap; vertical-align: middle;">
+              <a href="{{ page.review_url }}" style="display: inline-block; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; color: white; background-color: #EF4444; text-decoration: none;">Review</a>
+            </td>
+          </tr>
+        </mj-table>
+        {% endfor %}
+      </mj-column>
+    </mj-section>
+    {% endfor %}
+
+    <mj-section background-color="#f9fafb" padding="30px 20px">
+      <mj-column>
+        <mj-text font-size="14px" color="#6b7280" align="center" line-height="20px">
+          This is an automated reminder to help you keep your pages up to date.
+        </mj-text>
+        <mj-text font-size="14px" color="#6b7280" align="center" line-height="20px" padding="10px 0 0 0">
+          Have questions? Reply to this email and we'll be happy to help!
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section background-color="#f3f4f6" padding="20px">
+      <mj-column>
+        <mj-text font-size="12px" color="#9ca3af" align="center">
+          © 2025 Cleanapp. All rights reserved.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+  </mj-body>
+</mjml>
+{% endmjml %}

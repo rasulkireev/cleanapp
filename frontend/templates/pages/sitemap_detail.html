@@ -1,0 +1,149 @@
+{% extends 'base_app.html' %}
+{% load webpack_loader static %}
+
+{% block meta %}
+  <title>Cleanapp - Sitemap Pages</title>
+{% endblock meta %}
+
+{% block content %}
+  <div class="container px-4 py-8 mx-auto max-w-6xl bg-white lg:min-w-0 md:pt-10 lg:flex-1">
+    <div class="p-4 border-t border-b border-gray-200 sm:p-6 lg:p-8 xl:border-t-0">
+      <div class="flex justify-between items-center">
+        <div class="flex-1">
+          <a href="{% url 'home' %}" class="inline-flex items-center mb-4 text-sm text-gray-600 hover:text-gray-900">
+            <svg class="mr-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            Back to Sitemaps
+          </a>
+          <h1 class="text-xl font-medium">Sitemap Pages</h1>
+          <p class="mt-1 text-sm text-gray-500 break-all">
+            <a href="{{ sitemap.sitemap_url }}" target="_blank" rel="noopener noreferrer" class="hover:text-blue-600">
+              {{ sitemap.sitemap_url }}
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {% if pages %}
+    <div class="px-6 py-4" data-controller="page">
+      <div class="flex flex-col">
+        <div data-page-target="bulkActions" class="hidden p-3 mb-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div class="flex gap-3 items-center">
+            <span class="text-sm font-medium text-gray-700">Bulk Actions:</span>
+            <button
+              data-action="click->page#markAsNoReview"
+              class="px-3 py-1.5 text-sm font-medium text-white bg-orange-600 rounded-md transition-colors hover:bg-orange-700"
+            >
+              Mark as No Need to Review
+            </button>
+            <button
+              data-action="click->page#markAsNeedsReview"
+              class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md transition-colors hover:bg-blue-700"
+            >
+              Mark as Needs Review
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <div class="inline-block py-2 min-w-full align-middle">
+            <div class="overflow-hidden rounded-lg border border-gray-200 shadow">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th scope="col" class="px-6 py-3 w-12 text-xs font-medium tracking-wider text-center text-gray-500 uppercase">
+                      <input
+                        type="checkbox"
+                        data-page-target="selectAll"
+                        data-action="change->page#toggleSelectAll"
+                        class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
+                      URL
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-xs font-medium tracking-wider text-center text-gray-500 uppercase">
+                      Needs Review
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-xs font-medium tracking-wider text-center text-gray-500 uppercase">
+                      Reviewed
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-xs font-medium tracking-wider text-center text-gray-500 uppercase">
+                      Reviewed Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  {% for page in pages %}
+                  <tr class="hover:bg-gray-50 {% if not page.needs_review %}opacity-50{% endif %}">
+                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        data-page-target="checkbox"
+                        data-page-id="{{ page.id }}"
+                        data-action="change->page#toggleCheckbox"
+                        class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td class="px-6 py-4 text-sm {% if page.needs_review %}text-gray-900{% else %}text-gray-400{% endif %} break-all">
+                      <a href="{{ page.url }}" target="_blank" rel="noopener noreferrer" class="hover:text-blue-600">
+                        {{ page.url }}
+                      </a>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-center whitespace-nowrap">
+                      {% if page.needs_review %}
+                        <span class="inline-flex px-2 text-xs font-semibold leading-5 text-blue-800 bg-blue-100 rounded-full">
+                          Yes
+                        </span>
+                      {% else %}
+                        <span class="inline-flex px-2 text-xs font-semibold leading-5 text-gray-800 bg-gray-100 rounded-full">
+                          No
+                        </span>
+                      {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-center whitespace-nowrap">
+                      {% if page.reviewed %}
+                        <span class="inline-flex px-2 text-xs font-semibold leading-5 text-green-800 bg-green-100 rounded-full">
+                          Yes
+                        </span>
+                      {% else %}
+                        <span class="inline-flex px-2 text-xs font-semibold leading-5 text-gray-800 bg-gray-100 rounded-full">
+                          No
+                        </span>
+                      {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-center text-gray-500 whitespace-nowrap">
+                      {% if page.reviewed_at %}
+                        {{ page.reviewed_at|date:"M d, Y" }} at {{ page.reviewed_at|time:"h:i A" }}
+                      {% else %}
+                        <span class="text-gray-400">-</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 text-sm text-gray-600">
+          Total pages: {{ pages|length }}
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="px-6 py-4">
+      <div class="p-6 text-center bg-gray-50 rounded-lg">
+        <svg class="mx-auto w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No pages found</h3>
+        <p class="mt-1 text-sm text-gray-500">This sitemap doesn't have any pages yet.</p>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+{% endblock content %}

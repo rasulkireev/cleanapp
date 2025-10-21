@@ -1,34 +1,108 @@
-{% extends "base.html" %}
+{% extends 'base_app.html' %}
+{% load webpack_loader static %}
+{% load widget_tweaks %}
+
+{% block meta %}
+  <title>Cleanapp - Home</title>
+{% endblock meta %}
 
 {% block content %}
-<div class="isolate relative px-6 mt-16 sm:mt-24 lg:px-8">
-  <div class="isolate relative px-6 mt-16 sm:mt-24 lg:px-8">
-    <div class="mx-auto text-center">
-        <h1 class="mx-auto mb-6 max-w-2xl text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-          Daily reminder for the pages that need polish.
-        </h1>
-        <div class="flex flex-col gap-x-6 justify-center items-center mt-10 md:flex-row md:items-end">
-          <a
-            class="block px-3 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-            href="{% url 'account_signup' %}"
-          >
-            Get Started
-          </a>
-        </div>
+  <div class="container px-4 py-8 mx-auto max-w-3xl bg-white lg:min-w-0 md:pt-10 lg:flex-1">
+    <div class="p-4 border-t border-b border-gray-200 sm:p-6 lg:p-8 xl:border-t-0">
+      <div class="flex justify-between items-center">
+        <h1 class="flex-1 pt-2 text-xl font-medium">My Sitemaps</h1>
+      </div>
     </div>
+
+    <div class="px-6 py-4">
+      <div class="flex flex-col">
+        <h3 class="mb-6 text-lg font-medium leading-6 text-gray-900">Add New Sitemap</h3>
+        <div class="mt-5 md:mt-0">
+          <form method="post">
+            {% csrf_token %}
+            <div class="overflow-hidden sm:rounded-md">
+              <div class="px-2 py-5">
+                <div class="grid grid-cols-6 gap-6">
+                  {{ form.non_field_errors }}
+                  <div class="col-span-6">
+                    {{ form.sitemap_url.errors | safe }}
+                    <label for="{{ form.sitemap_url.id_for_label }}" class="block text-sm font-medium text-gray-700">Sitemap URL</label>
+                    {{ form.sitemap_url }}
+                    <p class="mt-2 text-sm text-gray-500">Enter the full URL to your sitemap (e.g., https://example.com/sitemap.xml)</p>
+                  </div>
+                </div>
+              </div>
+              <div class="px-2 mt-6 text-right">
+                <button type="submit" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                  Add Sitemap
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="block" aria-hidden="true">
+      <div class="py-5">
+        <div class="border-t border-gray-200"></div>
+      </div>
+    </div>
+
+    {% if sitemaps %}
+    <div class="px-6 py-4" data-controller="sitemap">
+      <div class="flex flex-col">
+        <h3 class="mb-6 text-lg font-medium leading-6 text-gray-900">Your Sitemaps</h3>
+        <div class="overflow-hidden bg-white rounded-lg border border-gray-200 shadow">
+          <ul role="list" class="divide-y divide-gray-200">
+            {% for sitemap in sitemaps %}
+            <li class="px-6 py-4" data-sitemap-target="item">
+              <div class="flex justify-between items-center">
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-900 truncate">
+                    <a href="{% url 'sitemap_detail' sitemap.id %}" class="hover:text-blue-600">
+                      {{ sitemap.sitemap_url }}
+                    </a>
+                  </p>
+                  <p class="mt-1 text-sm text-gray-500">
+                    Added on {{ sitemap.created_at|date:"M d, Y" }} at {{ sitemap.created_at|time:"h:i A" }}
+                  </p>
+                </div>
+                <div class="flex flex-shrink-0 gap-2 ml-4">
+                  <button
+                    type="button"
+                    data-action="click->sitemap#delete"
+                    data-sitemap-id="{{ sitemap.id }}"
+                    data-sitemap-url="{{ sitemap.sitemap_url }}"
+                    class="p-2 text-red-600 rounded-md transition-colors hover:text-red-900 hover:bg-red-50"
+                    title="Delete sitemap"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
+                  <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                </div>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="px-6 py-4">
+      <div class="p-6 text-center bg-gray-50 rounded-lg">
+        <svg class="mx-auto w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No sitemaps</h3>
+        <p class="mt-1 text-sm text-gray-500">Get started by adding your first sitemap URL.</p>
+      </div>
+    </div>
+    {% endif %}
+
   </div>
-</div>
-
-{% if show_confetti %}
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-<script>
-  confetti({
-    particleCount: 100,
-    spread: 70,
-    origin: { y: 0.6 }
-  });
-</script>
-{% endif %}
-
 {% endblock content %}
-
