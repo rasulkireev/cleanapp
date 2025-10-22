@@ -1,12 +1,17 @@
 import json
 from urllib.parse import unquote
 import xml.etree.ElementTree as ET
+from datetime import time
 
 import posthog
 
 
 import requests
 from django.conf import settings
+from django.utils import timezone
+from django.db.models import Count
+from django_q.tasks import async_task
+import zoneinfo
 
 from core.models import Profile
 from cleanapp.utils import get_cleanapp_logger
@@ -192,7 +197,7 @@ def process_sitemap_pages(sitemap_id: int) -> str:
 
 
 def send_page_email_to_profile(profile_id: int) -> str:
-    from core.models import Profile, Page, Sitemap
+    from core.models import Profile, Page, Sitemap, Email
     from django.core.mail import EmailMultiAlternatives
     from django.template.loader import render_to_string
     from django.utils.html import strip_tags
@@ -259,6 +264,7 @@ def send_page_email_to_profile(profile_id: int) -> str:
 
     try:
         email.send()
+        Email.objects.create(profile=profile)
         logger.info(
             "Page review email sent",
             email=profile.user.email,
@@ -276,3 +282,55 @@ def send_page_email_to_profile(profile_id: int) -> str:
             exc_info=True
         )
         return f"Failed to send email: {str(e)}"
+
+
+def schedule_review_emails() -> str:
+    from core.models import Profile, Email
+    from core.utils import should_send_email_to_profile
+
+    profiles_with_sitemaps = Profile.objects.annotate(
+        sitemap_count=Count('sitemap')
+    ).filter(sitemap_count__gt=0)
+
+    emails_scheduled = 0
+    profiles_checked = 0
+
+    for profile in profiles_with_sitemaps:
+        profiles_checked += 1
+
+        try:
+            user_timezone = zoneinfo.ZoneInfo(profile.timezone)
+        except (zoneinfo.ZoneInfoNotFoundError, ValueError):
+            user_timezone = zoneinfo.ZoneInfo("UTC")
+            logger.warning(
+                "Invalid timezone for profile, using UTC",
+                email=profile.user.email,
+                profile_id=profile.id,
+                timezone=profile.timezone
+            )
+
+        current_time_in_user_tz = timezone.now().astimezone(user_timezone)
+
+        preferred_email_time = profile.preferred_email_time or time(9, 0)
+
+        last_email = Email.objects.filter(profile=profile).order_by('-created_at').first()
+        last_email_time = last_email.created_at.astimezone(user_timezone) if last_email else None
+
+        if not should_send_email_to_profile(profile, last_email_time, current_time_in_user_tz):
+            continue
+
+        current_time_only = current_time_in_user_tz.time()
+        time_diff = abs(
+            (current_time_only.hour * 60 + current_time_only.minute) -
+            (preferred_email_time.hour * 60 + preferred_email_time.minute)
+        )
+
+        if time_diff <= 5:
+            async_task(
+                'core.tasks.send_page_email_to_profile',
+                profile_id=profile.id,
+                group="Email Scheduling"
+            )
+            emails_scheduled += 1
+
+    return f"Checked {profiles_checked} profiles, scheduled {emails_scheduled} emails"

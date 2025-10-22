@@ -160,6 +160,8 @@ class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         return self.request.user.profile
 
     def get_context_data(self, **kwargs):
+        from core.forms import get_timezone_list
+
         context = super().get_context_data(**kwargs)
         user = self.request.user
 
@@ -175,42 +177,51 @@ class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
 
         context["sitemaps"] = sitemaps
         context["sitemap_forms"] = sitemap_forms
+        context["timezones"] = get_timezone_list()
 
         return context
 
     def post(self, request, *args, **kwargs):
-        if 'save_sitemap_settings' in request.POST:
-            sitemaps = Sitemap.objects.filter(profile=request.user.profile)
+        self.object = self.get_object()
+        profile_form = self.get_form()
+
+        sitemaps = Sitemap.objects.filter(profile=request.user.profile)
+        sitemap_forms = []
+        for sitemap in sitemaps:
+            sitemap_forms.append(
+                (sitemap, SitemapSettingsForm(request.POST, instance=sitemap, prefix=f'sitemap_{sitemap.id}'))
+            )
+
+        profile_valid = profile_form.is_valid()
+        sitemap_forms_valid = all(form.is_valid() for _, form in sitemap_forms)
+
+        if profile_valid and sitemap_forms_valid:
+            profile_form.save()
+
+            logger.info(
+                "User profile updated",
+                profile_id=request.user.profile.id,
+                email=request.user.email
+            )
+
             updated_count = 0
-            errors = []
+            for sitemap, form in sitemap_forms:
+                form.save()
+                updated_count += 1
 
-            for sitemap in sitemaps:
-                form = SitemapSettingsForm(request.POST, instance=sitemap, prefix=f'sitemap_{sitemap.id}')
-                if form.is_valid():
-                    form.save()
-                    updated_count += 1
+                logger.info(
+                    "Sitemap settings updated",
+                    profile_id=request.user.profile.id,
+                    email=request.user.email,
+                    sitemap_id=sitemap.id,
+                    pages_per_review=sitemap.pages_per_review,
+                    review_cadence=sitemap.review_cadence
+                )
 
-                    logger.info(
-                        "Sitemap settings updated",
-                        profile_id=request.user.profile.id,
-                        email=request.user.email,
-                        sitemap_id=sitemap.id,
-                        pages_per_review=sitemap.pages_per_review,
-                        review_cadence=sitemap.review_cadence
-                    )
-                else:
-                    errors.append(f"Error updating {sitemap.sitemap_url}")
-
-            if updated_count > 0:
-                messages.success(request, f"Successfully updated settings for {updated_count} sitemap(s)")
-
-            if errors:
-                for error in errors:
-                    messages.error(request, error)
-
-            return redirect('settings')
-
-        return super().post(request, *args, **kwargs)
+            messages.success(request, "Settings updated successfully")
+            return redirect(self.get_success_url())
+        else:
+            return self.form_invalid(profile_form)
 
 
 
@@ -438,5 +449,28 @@ def send_test_email(request):
         )
 
         messages.success(request, f"Test email queued and will be sent to {request.user.email}!")
+
+    return redirect("admin_panel")
+
+
+@login_required
+def trigger_schedule_review_emails(request):
+    if not request.user.is_superuser:
+        messages.error(request, "You don't have permission to perform this action.")
+        return redirect("home")
+
+    if request.method == "POST":
+        async_task(
+            "core.tasks.schedule_review_emails",
+            group="Schedule Review Emails",
+        )
+
+        logger.info(
+            "Schedule review emails task triggered",
+            email=request.user.email,
+            profile_id=request.user.profile.id,
+        )
+
+        messages.success(request, "Review email scheduling task has been queued!")
 
     return redirect("admin_panel")

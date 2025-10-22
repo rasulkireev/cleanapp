@@ -165,9 +165,14 @@
                     </form>
                   </li>
                   {% else %}
-                  <li class="py-5 text-center">
-                    <a href="{% url 'account_login' %}" class="inline-block rounded-full border-[1.5px] border-gray-300 px-6 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-100">
+                  <li class="py-5 text-center border-b border-gray-200">
+                    <a href="{% url 'account_login' %}" class="text-sm font-semibold text-gray-900 hover:text-red-600">
                       Sign In
+                    </a>
+                  </li>
+                  <li class="py-5 text-center">
+                    <a href="{% url 'account_signup' %}" class="text-sm font-semibold text-red-600 hover:text-red-700">
+                      Start for Free
                     </a>
                   </li>
                   {% endif %}

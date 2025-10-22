@@ -43,12 +43,13 @@
     {% endif %}
 
 
-    <div class="px-6 py-4">
-      <div class="flex flex-col">
-        <h3 class="mb-6 text-lg font-medium leading-6 text-gray-900">Personal Information</h3>
-        <div class="mt-5 md:mt-0">
-          <form action="" method="post">
-            {% csrf_token %}
+    <form action="" method="post">
+      {% csrf_token %}
+
+      <div class="px-6 py-4">
+        <div class="flex flex-col">
+          <h3 class="mb-6 text-lg font-medium leading-6 text-gray-900">Personal Information</h3>
+          <div class="mt-5 md:mt-0">
             <div class="overflow-hidden sm:rounded-md">
               <div class="px-2 py-5">
                 <div class="grid grid-cols-6 gap-6">
@@ -56,48 +57,71 @@
                   <div class="col-span-6 sm:col-span-3">
                     {{ form.first_name.errors | safe }}
                     <label for="{{ form.first_name.id_for_label }}" class="block text-sm font-medium text-gray-700">First name</label>
-                    {% render_field form.first_name id="first-name" name="first-name" type="text" autocomplete="given-name" class="block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-{{ cookiecutter.project_main_color }}-500 focus:ring-{{ cookiecutter.project_main_color }}-500 sm:text-sm" %}
+                    {% render_field form.first_name id="first-name" name="first-name" type="text" autocomplete="given-name" class="block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %}
                   </div>
 
                   <div class="col-span-6 sm:col-span-3">
                     {{ form.last_name.errors | safe }}
                     <label for="{{ form.last_name.id_for_label }}" class="block text-sm font-medium text-gray-700">Last name</label>
-                    {% render_field form.last_name id="last-name" name="last-name" type="text" autocomplete="family-name" class="block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-{{ cookiecutter.project_main_color }}-500 focus:ring-{{ cookiecutter.project_main_color }}-500 sm:text-sm" %}
-                  </div>
-
-                  <div class="col-span-6">
-                    {{ form.email.errors | safe }}
-                    <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700">Email address</label>
-                    {% render_field form.email id="email-address" name="email-address" type="email" autocomplete="email" class="block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-{{ cookiecutter.project_main_color }}-500 focus:ring-{{ cookiecutter.project_main_color }}-500 sm:text-sm" %}
+                    {% render_field form.last_name id="last-name" name="last-name" type="text" autocomplete="family-name" class="block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %}
                   </div>
                 </div>
               </div>
-              <div class="mt-6 text-right">
-                <button type="submit" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                  Save Changes
-                </button>
-              </div>
             </div>
-          </form>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="block" aria-hidden="true">
-      <div class="py-5">
-        <div class="border-t border-gray-200"></div>
+      <div class="block" aria-hidden="true">
+        <div class="py-5">
+          <div class="border-t border-gray-200"></div>
+        </div>
       </div>
-    </div>
 
-    {% if sitemaps %}
-    <div class="px-6 py-4">
-      <div class="flex flex-col">
-        <h3 class="mb-6 text-lg font-medium leading-6 text-gray-900">Sitemap Review Settings</h3>
-        <p class="mb-4 text-sm text-gray-600">Configure how often you want to receive review emails and how many pages to include for each sitemap.</p>
+      <div class="px-6 py-4">
+        <div class="flex flex-col">
+          <h3 class="mb-6 text-lg font-medium leading-6 text-gray-900">Email Preferences</h3>
+          <p class="mb-4 text-sm text-gray-600">Set your preferred time to receive review emails.</p>
+          <div class="mt-5 md:mt-0">
+            <div class="overflow-hidden sm:rounded-md">
+              <div class="px-2 py-5">
+                <div class="grid grid-cols-6 gap-6">
+                  <div class="col-span-6 sm:col-span-3">
+                    {{ form.preferred_email_time.errors | safe }}
+                    <label for="{{ form.preferred_email_time.id_for_label }}" class="block text-sm font-medium text-gray-700">Preferred time</label>
+                    {% render_field form.preferred_email_time class="block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %}
+                    <p class="mt-1 text-xs text-gray-500">Time to receive review emails (in your timezone)</p>
+                  </div>
 
-        <form action="{% url 'settings' %}" method="post">
-          {% csrf_token %}
-          <input type="hidden" name="save_sitemap_settings" value="true">
+                  <div class="col-span-6 sm:col-span-3">
+                    {{ form.timezone.errors | safe }}
+                    <label for="{{ form.timezone.id_for_label }}" class="block text-sm font-medium text-gray-700">Timezone</label>
+                    {% render_field form.timezone class="block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Type to search (e.g., America/New York)" %}
+                    <datalist id="timezone-list">
+                      {% for tz in timezones %}
+                        <option value="{{ tz.value }}">{{ tz.label }}</option>
+                      {% endfor %}
+                    </datalist>
+                    <p class="mt-1 text-xs text-gray-500">Start typing to search timezones</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% if sitemaps %}
+      <div class="block" aria-hidden="true">
+        <div class="py-5">
+          <div class="border-t border-gray-200"></div>
+        </div>
+      </div>
+
+      <div class="px-6 py-4">
+        <div class="flex flex-col">
+          <h3 class="mb-6 text-lg font-medium leading-6 text-gray-900">Sitemap Review Settings</h3>
+          <p class="mb-4 text-sm text-gray-600">Configure how often you want to receive review emails and how many pages to include for each sitemap.</p>
 
           {% for sitemap in sitemaps %}
           <div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -127,16 +151,18 @@
             {% endwith %}
           </div>
           {% endfor %}
-
-          <div class="mt-6 text-right">
-            <button type="submit" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-              Save All Sitemap Settings
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
-    </div>
-    {% endif %}
+      {% endif %}
+
+      <div class="px-6 py-4">
+        <div class="text-right">
+          <button type="submit" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+            Save
+          </button>
+        </div>
+      </div>
+    </form>
 
   </div>
 {% endblock content %}

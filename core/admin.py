@@ -1,7 +1,7 @@
 
 from django.contrib import admin
 
-from core.models import BlogPost, Sitemap, Page
+from core.models import BlogPost, Sitemap, Page, Email
 
 
 @admin.register(BlogPost)
@@ -24,3 +24,10 @@ class PageAdmin(admin.ModelAdmin):
     list_filter = ('needs_review', 'reviewed', 'created_at')
     search_fields = ('url', 'profile__user__email')
     list_editable = ('needs_review',)
+
+
+@admin.register(Email)
+class EmailAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'profile')
+    list_filter = ('created_at',)
+    search_fields = ('profile__user__email',)
