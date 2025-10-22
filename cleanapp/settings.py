@@ -385,11 +385,9 @@ LOGGING = {
             "handlers": ["console"],
             "level": "INFO",
         },
-        # django.server can log some low-level logs, but also does log requests,
-        # for some reason...
         "django.server": {
             "handlers": ["console"],
-            "level": "ERROR",
+            "level": "CRITICAL",
             "propagate": False,
         },
         "django.request": {

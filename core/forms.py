@@ -1,8 +1,30 @@
 from allauth.account.forms import LoginForm, SignupForm
 from django import forms
+from datetime import datetime
+import pytz
+from functools import lru_cache
 
 from core.models import Profile, Sitemap
 from core.utils import DivErrorList
+
+
+@lru_cache(maxsize=1)
+def get_timezone_list():
+    timezones = []
+    now = datetime.now(pytz.UTC)
+
+    for tz_name in pytz.common_timezones:
+        try:
+            tz = pytz.timezone(tz_name)
+            dt = now.astimezone(tz)
+            offset = dt.strftime('%z')
+            offset_hours = f"{offset[:3]}:{offset[3:]}"
+            label = f"(UTC{offset_hours}) {tz_name.replace('_', ' ')}"
+            timezones.append({'value': tz_name, 'label': label})
+        except Exception:
+            timezones.append({'value': tz_name, 'label': tz_name})
+
+    return sorted(timezones, key=lambda x: x['label'])
 
 
 class CustomSignUpForm(SignupForm):
@@ -18,27 +40,31 @@ class CustomLoginForm(LoginForm):
 
 
 class ProfileUpdateForm(forms.ModelForm):
-    first_name = forms.CharField(max_length=30)
-    last_name = forms.CharField(max_length=30)
-    email = forms.EmailField()
+    first_name = forms.CharField(max_length=30, required=False)
+    last_name = forms.CharField(max_length=30, required=False)
 
     class Meta:
         model = Profile
-        fields = []
+        fields = ['preferred_email_time', 'timezone']
+        widgets = {
+            'preferred_email_time': forms.TimeInput(attrs={'type': 'time'}),
+            'timezone': forms.TextInput(attrs={
+                'list': 'timezone-list',
+                'autocomplete': 'off'
+            })
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.user:
             self.fields["first_name"].initial = self.instance.user.first_name
             self.fields["last_name"].initial = self.instance.user.last_name
-            self.fields["email"].initial = self.instance.user.email
 
     def save(self, commit=True):
         profile = super().save(commit=False)
         user = profile.user
         user.first_name = self.cleaned_data["first_name"]
         user.last_name = self.cleaned_data["last_name"]
-        user.email = self.cleaned_data["email"]
         if commit:
             user.save()
             profile.save()

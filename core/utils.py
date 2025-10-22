@@ -1,4 +1,5 @@
 import requests
+from datetime import timedelta
 
 from django.forms.utils import ErrorList
 from django.conf import settings
@@ -40,3 +41,27 @@ def ping_healthchecks(ping_id):
     except requests.RequestException as e:
         logger.error("Ping failed", error=e, exc_info=True)
 
+
+def should_send_email_to_profile(profile, last_email_time, current_time_in_user_tz):
+    from core.models import Sitemap
+    from core.choices import ReviewCadence
+
+    if not last_email_time:
+        return True
+
+    sitemaps = Sitemap.objects.filter(profile=profile)
+    if not sitemaps.exists():
+        return False
+
+    most_frequent_cadence = sitemaps.order_by('review_cadence').first().review_cadence
+
+    time_since_last_email = current_time_in_user_tz - last_email_time
+
+    if most_frequent_cadence == ReviewCadence.DAILY:
+        return time_since_last_email >= timedelta(days=1)
+    elif most_frequent_cadence == ReviewCadence.WEEKLY:
+        return time_since_last_email >= timedelta(weeks=1)
+    elif most_frequent_cadence == ReviewCadence.MONTHLY:
+        return time_since_last_email >= timedelta(days=30)
+
+    return False

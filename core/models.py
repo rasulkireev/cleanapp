@@ -52,6 +52,17 @@ class Profile(BaseModel):
         help_text="The current state of the user's profile",
     )
 
+    preferred_email_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Preferred time of day to receive emails (in user's timezone)"
+    )
+    timezone = models.CharField(
+        max_length=63,
+        default="UTC",
+        help_text="User's timezone (e.g., 'America/New_York', 'Europe/London')"
+    )
+
     def track_state_change(self, to_state, metadata=None):
         async_task(
             "core.tasks.track_state_change",
@@ -217,3 +228,14 @@ class Page(BaseModel):
 
     # def get_absolute_url(self):
     #     return reverse("page", kwargs={"slug": self.slug})
+
+
+class Email(BaseModel):
+    profile = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name="emails",
+    )
+
+    def __str__(self):
+        return f"{self.created_at} <{self.profile.user.email}>"

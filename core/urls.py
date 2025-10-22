@@ -20,6 +20,7 @@ urlpatterns = [
     path("resend-confirmation/", views.resend_confirmation_email, name="resend_confirmation"),
     path("review-page/<int:page_id>/", views.review_page_redirect, name="review_page_redirect"),
     path("send-test-email/", views.send_test_email, name="send_test_email"),
+    path("trigger-schedule-review-emails/", views.trigger_schedule_review_emails, name="trigger_schedule_review_emails"),
     # payments
     path("pricing", views.PricingView.as_view(), name="pricing"),
     path(
