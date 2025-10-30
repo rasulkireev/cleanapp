@@ -28,7 +28,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile-python
+      dockerfile: ./deployment/Dockerfile.python
     working_dir: /app
     command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
@@ -48,7 +48,7 @@ services:
   workers:
     build:
       context: .
-      dockerfile: Dockerfile-python
+      dockerfile: ./deployment/Dockerfile.python
     working_dir: /app
     command: python manage.py qcluster
     volumes:

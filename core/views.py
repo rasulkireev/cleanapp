@@ -1,40 +1,30 @@
 from urllib.parse import urlencode
 
-from django.http import HttpResponse
 import stripe
-
-import posthog
-from allauth.account.views import SignupView
-import json
-
 from allauth.account.models import EmailAddress
-from django_q.tasks import async_task
 from allauth.account.utils import send_email_confirmation
+from allauth.account.views import SignupView
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.shortcuts import redirect
-from django.conf import settings
-from django.contrib import messages
 from django.urls import reverse, reverse_lazy
-from django.views.generic import TemplateView, UpdateView, ListView, DetailView
-from django.template.loader import render_to_string
-from django.utils.html import strip_tags
-from django.core.mail import EmailMultiAlternatives
-
+from django.views.generic import DetailView, ListView, TemplateView, UpdateView
+from django_q.tasks import async_task
 from djstripe import models as djstripe_models
-from core.choices import ProfileStates
-
-
-from core.forms import ProfileUpdateForm, SitemapForm, SitemapSettingsForm
-from core.models import Profile, BlogPost, Sitemap, Page, Feedback
 
 from cleanapp.utils import get_cleanapp_logger
+from core.choices import ProfileStates
+from core.forms import ProfileUpdateForm, SitemapForm, SitemapSettingsForm
+from core.models import BlogPost, Feedback, Page, Profile, Sitemap
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
 logger = get_cleanapp_logger(__name__)
+
 
 class LandingPageView(TemplateView):
     template_name = "pages/landing-page.html"
@@ -49,7 +39,6 @@ class LandingPageView(TemplateView):
         elif payment_status == "failed":
             messages.error(self.request, "Something went wrong with the payment.")
 
-
         if self.request.user.is_authenticated and settings.POSTHOG_API_KEY:
             user = self.request.user
             profile = user.profile
@@ -62,7 +51,6 @@ class LandingPageView(TemplateView):
                 group="Create Posthog Alias",
             )
 
-
         return context
 
 
@@ -73,8 +61,10 @@ class HomeView(LoginRequiredMixin, SuccessMessageMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['form'] = SitemapForm()
-        context['sitemaps'] = Sitemap.objects.filter(profile=self.request.user.profile).order_by('-created_at')
+        context["form"] = SitemapForm()
+        context["sitemaps"] = Sitemap.objects.filter(profile=self.request.user.profile).order_by(
+            "-created_at"
+        )
         return context
 
     def post(self, request, *args, **kwargs):
@@ -88,14 +78,14 @@ class HomeView(LoginRequiredMixin, SuccessMessageMixin, TemplateView):
                 "Sitemap URL added",
                 profile_id=request.user.profile.id,
                 email=request.user.email,
-                sitemap_url=sitemap.sitemap_url
+                sitemap_url=sitemap.sitemap_url,
             )
 
             messages.success(request, self.success_message)
-            return redirect('home')
+            return redirect("home")
         else:
             context = self.get_context_data(**kwargs)
-            context['form'] = form
+            context["form"] = form
             return self.render_to_response(context)
 
 
@@ -110,7 +100,7 @@ class SitemapDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['pages'] = Page.objects.filter(sitemap=self.object).order_by('-needs_review', 'url')
+        context["pages"] = Page.objects.filter(sitemap=self.object).order_by("-needs_review", "url")
         return context
 
 
@@ -145,8 +135,8 @@ class AccountSignupView(SignupView):
             group="Track Event",
         )
 
-
         return response
+
 
 class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     login_url = "account_login"
@@ -161,23 +151,29 @@ class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         from core.forms import get_timezone_list
+        from core.models import EmailPreference
 
         context = super().get_context_data(**kwargs)
         user = self.request.user
 
-        email_address = EmailAddress.objects.get_for_user(user, user.email)
-        context["email_verified"] = email_address.verified
+        primary_email = EmailAddress.objects.get_for_user(user, user.email)
+        context["email_verified"] = primary_email.verified
         context["resend_confirmation_url"] = reverse("resend_confirmation")
         context["has_subscription"] = user.profile.has_active_subscription
 
-        sitemaps = Sitemap.objects.filter(profile=user.profile).order_by('-created_at')
+        sitemaps = Sitemap.objects.filter(profile=user.profile).order_by("-created_at")
         sitemap_forms = {}
         for sitemap in sitemaps:
-            sitemap_forms[sitemap.id] = SitemapSettingsForm(instance=sitemap, prefix=f'sitemap_{sitemap.id}')
+            sitemap_forms[sitemap.id] = SitemapSettingsForm(
+                instance=sitemap, prefix=f"sitemap_{sitemap.id}"
+            )
 
         context["sitemaps"] = sitemaps
         context["sitemap_forms"] = sitemap_forms
         context["timezones"] = get_timezone_list()
+        context["email_preferences"] = EmailPreference.objects.filter(
+            profile=user.profile
+        ).order_by("-created_at")
 
         return context
 
@@ -189,7 +185,12 @@ class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         sitemap_forms = []
         for sitemap in sitemaps:
             sitemap_forms.append(
-                (sitemap, SitemapSettingsForm(request.POST, instance=sitemap, prefix=f'sitemap_{sitemap.id}'))
+                (
+                    sitemap,
+                    SitemapSettingsForm(
+                        request.POST, instance=sitemap, prefix=f"sitemap_{sitemap.id}"
+                    ),
+                )
             )
 
         profile_valid = profile_form.is_valid()
@@ -199,9 +200,7 @@ class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
             profile_form.save()
 
             logger.info(
-                "User profile updated",
-                profile_id=request.user.profile.id,
-                email=request.user.email
+                "User profile updated", profile_id=request.user.profile.id, email=request.user.email
             )
 
             updated_count = 0
@@ -215,15 +214,13 @@ class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
                     email=request.user.email,
                     sitemap_id=sitemap.id,
                     pages_per_review=sitemap.pages_per_review,
-                    review_cadence=sitemap.review_cadence
+                    review_cadence=sitemap.review_cadence,
                 )
 
             messages.success(request, "Settings updated successfully")
             return redirect(self.get_success_url())
         else:
             return self.form_invalid(profile_form)
-
-
 
 
 @login_required
@@ -308,7 +305,6 @@ def create_customer_portal_session(request):
     return redirect(session.url, code=303)
 
 
-
 class BlogView(ListView):
     model = BlogPost
     template_name = "blog/blog_posts.html"
@@ -319,22 +315,6 @@ class BlogPostView(DetailView):
     model = BlogPost
     template_name = "blog/blog_post.html"
     context_object_name = "blog_post"
-
-
-def test_mjml(request):
-    html_content = render_to_string("emails/test_mjml.html", {})
-    text_content = strip_tags(html_content)
-
-    email = EmailMultiAlternatives(
-        "Subject",
-        text_content,
-        settings.DEFAULT_FROM_EMAIL,
-        ["test@test.com"],
-    )
-    email.attach_alternative(html_content, "text/html")
-    email.send()
-
-    return HttpResponse("Email sent")
 
 
 @login_required
@@ -366,10 +346,11 @@ class AdminPanelView(UserPassesTestMixin, TemplateView):
         return redirect("home")
 
     def get_context_data(self, **kwargs):
-        from django.db.models import Count, Q
-        from django.contrib.auth.models import User
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.contrib.auth.models import User
+        from django.db.models import Count
+        from django.utils import timezone
 
         context = super().get_context_data(**kwargs)
 
@@ -393,35 +374,43 @@ class AdminPanelView(UserPassesTestMixin, TemplateView):
         pages_reviewed = Page.objects.filter(reviewed=True).count()
         pages_unreviewed = Page.objects.filter(reviewed=False).count()
 
-        recent_users = User.objects.select_related('profile').order_by('-date_joined')[:10]
-        recent_feedback = Feedback.objects.select_related('profile__user').order_by('-created_at')[:10]
-        recent_sitemaps = Sitemap.objects.select_related('profile__user').order_by('-created_at')[:10]
+        recent_users = User.objects.select_related("profile").order_by("-date_joined")[:10]
+        recent_feedback = Feedback.objects.select_related("profile__user").order_by("-created_at")[
+            :10
+        ]
+        recent_sitemaps = Sitemap.objects.select_related("profile__user").order_by("-created_at")[
+            :10
+        ]
 
-        top_users_by_pages = Profile.objects.annotate(
-            page_count=Count('pages')
-        ).filter(page_count__gt=0).order_by('-page_count')[:10]
+        top_users_by_pages = (
+            Profile.objects.annotate(page_count=Count("pages"))
+            .filter(page_count__gt=0)
+            .order_by("-page_count")[:10]
+        )
 
-        context.update({
-            'total_users': total_users,
-            'total_profiles': total_profiles,
-            'total_sitemaps': total_sitemaps,
-            'total_pages': total_pages,
-            'total_feedback': total_feedback,
-            'new_users_week': new_users_week,
-            'new_users_month': new_users_month,
-            'subscribed_users': subscribed_users,
-            'pages_reviewed': pages_reviewed,
-            'pages_unreviewed': pages_unreviewed,
-            'recent_users': recent_users,
-            'recent_feedback': recent_feedback,
-            'recent_sitemaps': recent_sitemaps,
-            'top_users_by_pages': top_users_by_pages,
-        })
+        context.update(
+            {
+                "total_users": total_users,
+                "total_profiles": total_profiles,
+                "total_sitemaps": total_sitemaps,
+                "total_pages": total_pages,
+                "total_feedback": total_feedback,
+                "new_users_week": new_users_week,
+                "new_users_month": new_users_month,
+                "subscribed_users": subscribed_users,
+                "pages_reviewed": pages_reviewed,
+                "pages_unreviewed": pages_unreviewed,
+                "recent_users": recent_users,
+                "recent_feedback": recent_feedback,
+                "recent_sitemaps": recent_sitemaps,
+                "top_users_by_pages": top_users_by_pages,
+            }
+        )
 
         logger.info(
             "Admin panel accessed",
             email=self.request.user.email,
-            profile_id=self.request.user.profile.id
+            profile_id=self.request.user.profile.id,
         )
 
         return context

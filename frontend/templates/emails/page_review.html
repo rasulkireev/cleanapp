@@ -23,16 +23,53 @@
       }
       .btn-review {
         display: inline-block;
-        padding: 10px 20px;
+        padding: 12px 20px;
         border-radius: 8px;
         font-size: 14px;
         font-weight: 600;
         color: white;
         background-color: #EF4444;
         text-decoration: none;
+        line-height: 20px;
+        text-align: center;
       }
       .btn-review:hover {
         background-color: #DC2626;
+      }
+      .url-cell {
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 20px;
+        font-weight: 500;
+        color: #374151;
+        background-color: #F3F4F6;
+        word-break: break-all;
+        vertical-align: middle;
+      }
+      .button-cell {
+        padding-left: 12px;
+        white-space: nowrap;
+        vertical-align: middle;
+      }
+      @media only screen and (max-width: 480px) {
+        .url-cell {
+          display: block;
+          width: 100% !important;
+          padding: 12px 16px !important;
+          margin-bottom: 8px;
+        }
+        .button-cell {
+          display: block;
+          width: 100% !important;
+          padding: 0 !important;
+          text-align: center;
+        }
+        .btn-review {
+          display: block;
+          width: 100%;
+          padding: 12px 20px;
+        }
       }
     </mj-style>
   </mj-head>
@@ -76,11 +113,11 @@
         {% for page in sitemap_data.pages %}
         <mj-table padding="0 0 16px 0">
           <tr>
-            <td style="padding: 16px 20px; border-radius: 8px; font-size: 14px; line-height: 20px; font-weight: 500; color: #374151; background-color: #F3F4F6; word-break: break-all; width: 100%;">
-              {{ page.url }}
+            <td class="url-cell" style="width: 100%;">
+              {{ page.url_path }}
             </td>
-            <td style="padding-left: 12px; white-space: nowrap; vertical-align: middle;">
-              <a href="{{ page.review_url }}" style="display: inline-block; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; color: white; background-color: #EF4444; text-decoration: none;">Review</a>
+            <td class="button-cell">
+              <a href="{{ page.review_url }}" class="btn-review">Review</a>
             </td>
           </tr>
         </mj-table>

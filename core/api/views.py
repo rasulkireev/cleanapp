@@ -1,26 +1,29 @@
 from django.http import HttpRequest
 from ninja import NinjaAPI
-from ninja.errors import HttpError
-
-from core.api.auth import session_auth, superuser_api_auth
-from core.models import Feedback, BlogPost, Sitemap, Page
-from core.api.schemas import (
-    SubmitFeedbackIn,
-    SubmitFeedbackOut,
-    BlogPostIn,
-    BlogPostOut,
-    ProfileSettingsOut,
-    UserSettingsOut,
-    DeleteSitemapOut,
-    BulkUpdatePagesIn,
-    BulkUpdatePagesOut,
-)
 
 from cleanapp.utils import get_cleanapp_logger
+from core.api.auth import session_auth, superuser_api_auth
+from core.api.schemas import (
+    AddEmailIn,
+    AddEmailOut,
+    BlogPostIn,
+    BlogPostOut,
+    BulkUpdatePagesIn,
+    BulkUpdatePagesOut,
+    DeleteEmailOut,
+    DeleteSitemapOut,
+    SubmitFeedbackIn,
+    SubmitFeedbackOut,
+    ToggleEmailIn,
+    ToggleEmailOut,
+    UserSettingsOut,
+)
+from core.models import BlogPost, EmailPreference, Feedback, Page, Sitemap
 
 logger = get_cleanapp_logger(__name__)
 
 api = NinjaAPI(docs_url=None)
+
 
 @api.post("/submit-feedback", response=SubmitFeedbackOut, auth=[session_auth])
 def submit_feedback(request: HttpRequest, data: SubmitFeedbackIn):
@@ -72,7 +75,7 @@ def user_settings(request: HttpRequest):
             profile_id=profile.id,
             exc_info=True,
         )
-        raise HttpError(500, "An unexpected error occurred.")
+        return {"profile": {"has_pro_subscription": False}}
 
 
 @api.delete("/sitemaps/{sitemap_id}", response=DeleteSitemapOut, auth=[session_auth])
@@ -88,7 +91,7 @@ def delete_sitemap(request: HttpRequest, sitemap_id: int):
             profile_id=profile.id,
             email=profile.user.email,
             sitemap_id=sitemap_id,
-            sitemap_url=sitemap_url
+            sitemap_url=sitemap_url,
         )
 
         return {"success": True, "message": "Sitemap deleted successfully"}
@@ -97,54 +100,152 @@ def delete_sitemap(request: HttpRequest, sitemap_id: int):
             "Sitemap not found for deletion",
             profile_id=profile.id,
             email=profile.user.email,
-            sitemap_id=sitemap_id
+            sitemap_id=sitemap_id,
         )
-        raise HttpError(404, "Sitemap not found")
+        return {"success": False, "message": "Sitemap not found"}
     except Exception as e:
         logger.error(
             "Failed to delete sitemap",
             error=str(e),
             profile_id=profile.id,
             sitemap_id=sitemap_id,
-            exc_info=True
+            exc_info=True,
         )
-        raise HttpError(500, "Failed to delete sitemap")
+        return {"success": False, "message": "Failed to delete sitemap"}
 
 
 @api.post("/pages/bulk-update", response=BulkUpdatePagesOut, auth=[session_auth])
 def bulk_update_pages(request: HttpRequest, data: BulkUpdatePagesIn):
     profile = request.auth
     try:
-        pages = Page.objects.filter(
-            id__in=data.page_ids,
-            profile=profile
-        )
+        pages = Page.objects.filter(id__in=data.page_ids, profile=profile)
 
         if not pages.exists():
             logger.warning(
                 "No pages found for bulk update",
                 profile_id=profile.id,
                 email=profile.user.email,
-                page_ids=data.page_ids
+                page_ids=data.page_ids,
             )
-            raise HttpError(404, "No pages found")
+            return {"success": False, "message": "No pages found", "updated_count": 0}
 
         updated_count = pages.update(needs_review=data.needs_review)
 
-        action = "marked as no need to review" if not data.needs_review else "marked as need to review"
+        action = (
+            "marked as no need to review" if not data.needs_review else "marked as need to review"
+        )
         return {
             "success": True,
             "message": f"{updated_count} page(s) {action}",
-            "updated_count": updated_count
+            "updated_count": updated_count,
         }
-    except HttpError:
-        raise
     except Exception as e:
         logger.error(
             "Failed to bulk update pages",
             error=str(e),
             profile_id=profile.id,
             page_ids=data.page_ids,
-            exc_info=True
+            exc_info=True,
         )
-        raise HttpError(500, "Failed to update pages")
+        return {"success": False, "message": "Failed to update pages", "updated_count": 0}
+
+
+@api.post("/emails/add", response=AddEmailOut, auth=[session_auth])
+def add_email(request: HttpRequest, data: AddEmailIn):
+    profile = request.auth
+    try:
+        email_address = data.email_address.strip().lower()
+
+        if EmailPreference.objects.filter(profile=profile, email_address=email_address).exists():
+            return {"success": False, "message": "This email address is already added"}
+
+        email_pref = EmailPreference.objects.create(
+            profile=profile, email_address=email_address, enabled=True
+        )
+
+        logger.info(
+            "Email preference added",
+            profile_id=profile.id,
+            email=profile.user.email,
+            new_email=email_address,
+        )
+
+        return {
+            "success": True,
+            "message": "Email address added successfully",
+            "email_id": email_pref.id,
+        }
+    except Exception as e:
+        logger.error("Failed to add email", error=str(e), profile_id=profile.id, exc_info=True)
+        return {"success": False, "message": "Failed to add email address"}
+
+
+@api.patch("/emails/{email_id}", response=ToggleEmailOut, auth=[session_auth])
+def toggle_email(request: HttpRequest, email_id: int, data: ToggleEmailIn):
+    profile = request.auth
+    try:
+        email_pref = EmailPreference.objects.get(id=email_id, profile=profile)
+        email_pref.enabled = data.enabled
+        email_pref.save(update_fields=["enabled"])
+
+        status = "enabled" if data.enabled else "disabled"
+        logger.info(
+            f"Email preference {status}",
+            profile_id=profile.id,
+            email=profile.user.email,
+            email_id=email_id,
+            email_address=email_pref.email_address,
+        )
+
+        return {"success": True, "message": f"Email notifications {status}"}
+    except EmailPreference.DoesNotExist:
+        logger.warning(
+            "Email preference not found for toggle",
+            profile_id=profile.id,
+            email_id=email_id,
+        )
+        return {"success": False, "message": "Email address not found"}
+    except Exception as e:
+        logger.error(
+            "Failed to toggle email",
+            error=str(e),
+            profile_id=profile.id,
+            email_id=email_id,
+            exc_info=True,
+        )
+        return {"success": False, "message": "Failed to update email address"}
+
+
+@api.delete("/emails/{email_id}", response=DeleteEmailOut, auth=[session_auth])
+def delete_email(request: HttpRequest, email_id: int):
+    profile = request.auth
+    try:
+        email_pref = EmailPreference.objects.get(id=email_id, profile=profile)
+        email_address = email_pref.email_address
+        email_pref.delete()
+
+        logger.info(
+            "Email preference deleted",
+            profile_id=profile.id,
+            email=profile.user.email,
+            email_id=email_id,
+            deleted_email=email_address,
+        )
+
+        return {"success": True, "message": "Email address removed successfully"}
+    except EmailPreference.DoesNotExist:
+        logger.warning(
+            "Email preference not found for deletion",
+            profile_id=profile.id,
+            email_id=email_id,
+        )
+        return {"success": False, "message": "Email address not found"}
+    except Exception as e:
+        logger.error(
+            "Failed to delete email",
+            error=str(e),
+            profile_id=profile.id,
+            email_id=email_id,
+            exc_info=True,
+        )
+        return {"success": False, "message": "Failed to delete email address"}

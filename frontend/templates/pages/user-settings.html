@@ -15,34 +15,6 @@
         <h1 class="flex-1 pt-2 text-xl font-medium">Settings</h1>
       </div>
     </div>
-    {% if not has_subscription %}
-    <div class="p-6 mt-6 mb-8 bg-gray-50 rounded-lg">
-      <h3 class="mb-4 text-lg font-medium leading-6 text-gray-900">Upgrade Your Account</h3>
-      <p class="mb-4 text-sm text-gray-600">Choose a plan that suits your needs:</p>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div class="rounded-md shadow">
-          <a href="{% url 'user_upgrade_checkout_session' pk=user.id plan='monthly' %}"
-             class="flex justify-center items-center px-4 py-3 h-full text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent transition duration-150 ease-in-out md:text-base hover:bg-blue-700">
-            Monthly - $10/m
-          </a>
-        </div>
-        <div class="rounded-md shadow">
-          <a href="{% url 'user_upgrade_checkout_session' pk=user.id plan='yearly' %}"
-             class="flex justify-center items-center px-4 py-3 h-full text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent transition duration-150 ease-in-out md:text-base hover:bg-blue-700">
-            Yearly - $100/y
-          </a>
-        </div>
-        <div class="rounded-md shadow">
-          <a href="{% url 'user_upgrade_checkout_session' pk=user.id plan='one-time' %}"
-             class="flex justify-center items-center px-4 py-3 h-full text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent transition duration-150 ease-in-out md:text-base hover:bg-blue-700">
-            One-time - $500
-          </a>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
-
     <form action="" method="post">
       {% csrf_token %}
 
@@ -68,6 +40,73 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="block" aria-hidden="true">
+        <div class="py-5">
+          <div class="border-t border-gray-200"></div>
+        </div>
+      </div>
+
+      <div class="px-6 py-4" data-controller="email">
+        <div class="flex flex-col">
+          <h3 class="mb-6 text-lg font-medium leading-6 text-gray-900">Email Addresses</h3>
+          <p class="mb-4 text-sm text-gray-600">Manage email addresses that will receive notifications. Toggle the checkbox to enable/disable notifications for each address.</p>
+
+          <div class="mb-6">
+            <label class="block mb-2 text-sm font-medium text-gray-700">Add new email address</label>
+            <div class="flex gap-2">
+              <input
+                type="email"
+                data-email-target="input"
+                placeholder="example@domain.com"
+                class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              />
+              <button
+                type="button"
+                data-email-target="addButton"
+                data-action="click->email#addEmail"
+                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Add Email
+              </button>
+            </div>
+          </div>
+
+          <div data-email-target="list" class="space-y-2">
+            {% for email_pref in email_preferences %}
+            <div data-email-item class="flex justify-between items-center p-3 bg-white rounded-md border border-gray-200">
+              <div class="flex flex-1 items-center space-x-3">
+                <input
+                  type="checkbox"
+                  {% if email_pref.enabled %}checked{% endif %}
+                  data-email-id="{{ email_pref.id }}"
+                  data-action="change->email#toggleEmail"
+                  class="text-blue-600 rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+                <div class="flex-1">
+                  <p class="text-sm font-medium text-gray-900">{{ email_pref.email_address }}</p>
+                  <p class="text-xs text-gray-500">
+                    {% if email_pref.enabled %}
+                      <span class="text-green-600">Notifications enabled</span>
+                    {% else %}
+                      <span class="text-gray-500">Notifications disabled</span>
+                    {% endif %}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                data-email-id="{{ email_pref.id }}"
+                data-action="click->email#deleteEmail"
+                class="text-sm font-medium text-red-600 hover:text-red-800"
+              >
+                Remove
+              </button>
+            </div>
+            {% endfor %}
           </div>
         </div>
       </div>

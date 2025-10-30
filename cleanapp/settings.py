@@ -10,21 +10,20 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
+import logging
 import os
 from pathlib import Path
+
 import environ
-import structlog
-import logging
+import logfire
 import sentry_sdk
+import structlog
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
 from structlog_sentry import SentryProcessor
 
-import logfire
 from cleanapp.logging_utils import scrubbing_callback
-
-
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -55,7 +54,7 @@ SENTRY_DSN = env("SENTRY_DSN", default="")
 SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG')
+DEBUG = env("DEBUG")
 
 SITE_URL = env("SITE_URL")
 
@@ -77,7 +76,6 @@ INSTALLED_APPS = [
     "widget_tweaks",
     "anymail",
     "djstripe",
-
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -85,7 +83,6 @@ INSTALLED_APPS = [
     "django_q",
     "django_extensions",
     "mjml",
-
     "django_structlog",
     "core.apps.CoreConfig",
 ]
@@ -118,7 +115,6 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "core.context_processors.current_state",
                 "core.context_processors.posthog_api_key",
-
                 "core.context_processors.available_social_providers",
             ],
         },
@@ -196,7 +192,7 @@ aws_s3_endpoint_url = env("AWS_S3_ENDPOINT_URL", default="")
 MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
 
 if not aws_s3_endpoint_url:
-    MEDIA_URL = f"/media/"
+    MEDIA_URL = "/media/"
     STORAGES = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -313,6 +309,7 @@ Q_CLUSTER = {
     "error_reporter": {},
 }
 
+
 def extract_from_record(logger, name, event_dict):
     """
     Extract thread name and add them to the event dict.
@@ -320,6 +317,7 @@ def extract_from_record(logger, name, event_dict):
     record = event_dict["_record"]
     event_dict["thread_id"] = record.thread
     return event_dict
+
 
 LOGGING = {
     "version": 1,
@@ -475,7 +473,7 @@ if SENTRY_DSN:
 POSTHOG_API_KEY = env("POSTHOG_API_KEY", default="")
 
 
-BUTTONDOWN_API_KEY=env("BUTTONDOWN_API_KEY", default="")
+BUTTONDOWN_API_KEY = env("BUTTONDOWN_API_KEY", default="")
 
 
 STRIPE_LIVE_SECRET_KEY = env("STRIPE_LIVE_SECRET_KEY", default="")
