@@ -1,22 +1,21 @@
 import json
-from urllib.parse import unquote
 import xml.etree.ElementTree as ET
+import zoneinfo
 from datetime import time
+from urllib.parse import unquote, urlparse
 
 import posthog
-
-
 import requests
 from django.conf import settings
-from django.utils import timezone
 from django.db.models import Count
+from django.utils import timezone
 from django_q.tasks import async_task
-import zoneinfo
 
-from core.models import Profile
 from cleanapp.utils import get_cleanapp_logger
+from core.models import Profile
 
 logger = get_cleanapp_logger(__name__)
+
 
 def add_email_to_buttondown(email, tag):
     if not settings.BUTTONDOWN_API_KEY:
@@ -108,7 +107,6 @@ def track_event(
     return f"Tracked event {event_name} for profile {profile_id}"
 
 
-
 def track_state_change(
     profile_id: int, from_state: str, to_state: str, metadata: dict = None
 ) -> None:
@@ -143,7 +141,7 @@ def track_state_change(
 
 
 def process_sitemap_pages(sitemap_id: int) -> str:
-    from core.models import Sitemap, Page
+    from core.models import Page, Sitemap
 
     try:
         sitemap = Sitemap.objects.get(id=sitemap_id)
@@ -158,11 +156,11 @@ def process_sitemap_pages(sitemap_id: int) -> str:
 
     try:
         root = ET.fromstring(response.content)
-        namespace = {'ns': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
-        urls = root.findall('.//ns:url/ns:loc', namespace)
+        namespace = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+        urls = root.findall(".//ns:url/ns:loc", namespace)
 
         if not urls:
-            urls = root.findall('.//url/loc')
+            urls = root.findall(".//url/loc")
 
         pages_created = 0
         pages_skipped = 0
@@ -172,23 +170,16 @@ def process_sitemap_pages(sitemap_id: int) -> str:
             if not url:
                 continue
 
-            existing_page = Page.objects.filter(
-                sitemap=sitemap,
-                url=url
-            ).first()
+            existing_page = Page.objects.filter(sitemap=sitemap, url=url).first()
 
             if existing_page:
                 pages_skipped += 1
                 continue
 
-            Page.objects.create(
-                profile=sitemap.profile,
-                sitemap=sitemap,
-                url=url
-            )
+            Page.objects.create(profile=sitemap.profile, sitemap=sitemap, url=url)
             pages_created += 1
 
-        return f"Processed sitemap {sitemap_id}: created {pages_created} pages, skipped {pages_skipped} existing pages"
+        return f"Processed sitemap {sitemap_id}: created {pages_created} pages, skipped {pages_skipped} existing pages"  # noqa: E501
 
     except ET.ParseError as e:
         return f"Failed to parse sitemap XML: {str(e)}"
@@ -197,12 +188,12 @@ def process_sitemap_pages(sitemap_id: int) -> str:
 
 
 def send_page_email_to_profile(profile_id: int) -> str:
-    from core.models import Profile, Page, Sitemap, Email
     from django.core.mail import EmailMultiAlternatives
     from django.template.loader import render_to_string
-    from django.utils.html import strip_tags
     from django.urls import reverse
-    from django.db.models import Count
+    from django.utils.html import strip_tags
+
+    from core.models import EmailPreference, EmailSent, Page, Profile, Sitemap
 
     try:
         profile = Profile.objects.get(id=profile_id)
@@ -219,78 +210,91 @@ def send_page_email_to_profile(profile_id: int) -> str:
 
     for sitemap in sitemaps:
         unreviewed_pages = Page.objects.filter(
-            sitemap=sitemap,
-            reviewed=False,
-            needs_review=True
-        ).order_by('?')[:sitemap.pages_per_review]
+            sitemap=sitemap, reviewed=False, needs_review=True
+        ).order_by("?")[: sitemap.pages_per_review]
 
         if unreviewed_pages.exists():
             pages_list = []
             for page in unreviewed_pages:
-                review_url = f"{settings.SITE_URL}{reverse('review_page_redirect', kwargs={'page_id': page.id})}"
+                review_url = f"{settings.SITE_URL}{reverse('review_page_redirect', kwargs={'page_id': page.id})}"  # noqa: E501
                 page.review_url = review_url
+
+                parsed_url = urlparse(page.url)
+                page.url_path = parsed_url.path or "/"
+
                 pages_list.append(page)
 
-            sitemaps_with_pages.append({
-                'sitemap': sitemap,
-                'pages': pages_list,
-                'pages_count': len(pages_list)
-            })
+            sitemaps_with_pages.append(
+                {"sitemap": sitemap, "pages": pages_list, "pages_count": len(pages_list)}
+            )
             total_pages_collected += len(pages_list)
 
     if not sitemaps_with_pages:
         return f"No unreviewed pages found for profile {profile_id}."
 
     context = {
-        'profile': profile,
-        'user': profile.user,
-        'sitemaps_with_pages': sitemaps_with_pages,
-        'total_sitemaps': len(sitemaps_with_pages),
-        'total_pages': total_pages_collected,
+        "profile": profile,
+        "user": profile.user,
+        "sitemaps_with_pages": sitemaps_with_pages,
+        "total_sitemaps": len(sitemaps_with_pages),
+        "total_pages": total_pages_collected,
     }
 
     html_content = render_to_string("emails/page_review.html", context)
     text_content = strip_tags(html_content)
 
-    subject = f"Time to Review {total_pages_collected} Page{'s' if total_pages_collected > 1 else ''}"
+    subject = (
+        f"Time to Review {total_pages_collected} Page{'s' if total_pages_collected > 1 else ''}"
+    )
+
+    email_preferences = EmailPreference.objects.filter(profile=profile, enabled=True).values_list(
+        "email_address", flat=True
+    )
+
+    recipient_list = list(email_preferences)
+
+    if not recipient_list:
+        recipient_list = [profile.user.email]
 
     email = EmailMultiAlternatives(
         subject,
         text_content,
         settings.DEFAULT_FROM_EMAIL,
-        [profile.user.email],
+        recipient_list,
     )
     email.attach_alternative(html_content, "text/html")
 
     try:
         email.send()
-        Email.objects.create(profile=profile)
+        EmailSent.objects.create(profile=profile)
         logger.info(
             "Page review email sent",
             email=profile.user.email,
             profile_id=profile_id,
             total_sitemaps=len(sitemaps_with_pages),
-            total_pages=total_pages_collected
+            total_pages=total_pages_collected,
+            recipient_count=len(recipient_list),
+            recipients=recipient_list,
         )
-        return f"Successfully sent page review email to {profile.user.email} with {total_pages_collected} pages from {len(sitemaps_with_pages)} sitemaps"
+        return f"Successfully sent page review email to {len(recipient_list)} address(es) with {total_pages_collected} pages from {len(sitemaps_with_pages)} sitemaps"  # noqa: E501
     except Exception as e:
         logger.error(
             "Failed to send page review email",
             email=profile.user.email,
             profile_id=profile_id,
             error=str(e),
-            exc_info=True
+            exc_info=True,
         )
         return f"Failed to send email: {str(e)}"
 
 
 def schedule_review_emails() -> str:
-    from core.models import Profile, Email
+    from core.models import EmailSent, Profile
     from core.utils import should_send_email_to_profile
 
-    profiles_with_sitemaps = Profile.objects.annotate(
-        sitemap_count=Count('sitemap')
-    ).filter(sitemap_count__gt=0)
+    profiles_with_sitemaps = Profile.objects.annotate(sitemap_count=Count("sitemap")).filter(
+        sitemap_count__gt=0
+    )
 
     emails_scheduled = 0
     profiles_checked = 0
@@ -306,14 +310,14 @@ def schedule_review_emails() -> str:
                 "Invalid timezone for profile, using UTC",
                 email=profile.user.email,
                 profile_id=profile.id,
-                timezone=profile.timezone
+                timezone=profile.timezone,
             )
 
         current_time_in_user_tz = timezone.now().astimezone(user_timezone)
 
         preferred_email_time = profile.preferred_email_time or time(9, 0)
 
-        last_email = Email.objects.filter(profile=profile).order_by('-created_at').first()
+        last_email = EmailSent.objects.filter(profile=profile).order_by("-created_at").first()
         last_email_time = last_email.created_at.astimezone(user_timezone) if last_email else None
 
         if not should_send_email_to_profile(profile, last_email_time, current_time_in_user_tz):
@@ -321,15 +325,15 @@ def schedule_review_emails() -> str:
 
         current_time_only = current_time_in_user_tz.time()
         time_diff = abs(
-            (current_time_only.hour * 60 + current_time_only.minute) -
-            (preferred_email_time.hour * 60 + preferred_email_time.minute)
+            (current_time_only.hour * 60 + current_time_only.minute)
+            - (preferred_email_time.hour * 60 + preferred_email_time.minute)
         )
 
         if time_diff <= 5:
             async_task(
-                'core.tasks.send_page_email_to_profile',
+                "core.tasks.send_page_email_to_profile",
                 profile_id=profile.id,
-                group="Email Scheduling"
+                group="Email Scheduling",
             )
             emails_scheduled += 1
 

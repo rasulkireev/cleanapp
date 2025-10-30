@@ -3,12 +3,10 @@ from django.db import models
 from django.urls import reverse
 from django_q.tasks import async_task
 
-from core.base_models import BaseModel
-from core.choices import ProfileStates , BlogPostStatus, ReviewCadence
-from core.model_utils import generate_random_key
-
-
 from cleanapp.utils import get_cleanapp_logger
+from core.base_models import BaseModel
+from core.choices import BlogPostStatus, ProfileStates, ReviewCadence
+from core.model_utils import generate_random_key
 
 logger = get_cleanapp_logger(__name__)
 
@@ -17,7 +15,6 @@ class Profile(BaseModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     key = models.CharField(max_length=30, unique=True, default=generate_random_key)
     experimental_flag = models.BooleanField(default=False)
-
 
     subscription = models.ForeignKey(
         "djstripe.Subscription",
@@ -44,7 +41,6 @@ class Profile(BaseModel):
         help_text="The user's Stripe Customer object, if it exists",
     )
 
-
     state = models.CharField(
         max_length=255,
         choices=ProfileStates.choices,
@@ -55,12 +51,12 @@ class Profile(BaseModel):
     preferred_email_time = models.TimeField(
         null=True,
         blank=True,
-        help_text="Preferred time of day to receive emails (in user's timezone)"
+        help_text="Preferred time of day to receive emails (in user's timezone)",
     )
     timezone = models.CharField(
         max_length=63,
         default="UTC",
-        help_text="User's timezone (e.g., 'America/New_York', 'Europe/London')"
+        help_text="User's timezone (e.g., 'America/New_York', 'Europe/London')",
     )
 
     def track_state_change(self, to_state, metadata=None):
@@ -81,7 +77,6 @@ class Profile(BaseModel):
         latest_transition = self.state_transitions.latest("created_at")
         return latest_transition.to_state
 
-
     @property
     def has_active_subscription(self):
         return (
@@ -92,6 +87,7 @@ class Profile(BaseModel):
             ]
             or self.user.is_superuser
         )
+
 
 class ProfileStateTransition(BaseModel):
     profile = models.ForeignKey(
@@ -181,14 +177,13 @@ class Sitemap(BaseModel):
         help_text="The sitemap text",
     )
     pages_per_review = models.PositiveIntegerField(
-        default=1,
-        help_text="Number of pages to review per email"
+        default=1, help_text="Number of pages to review per email"
     )
     review_cadence = models.CharField(
         max_length=20,
         choices=ReviewCadence.choices,
         default=ReviewCadence.DAILY,
-        help_text="How often to send review emails"
+        help_text="How often to send review emails",
     )
 
     def __str__(self):
@@ -219,8 +214,7 @@ class Page(BaseModel):
     reviewed = models.BooleanField(default=False)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     needs_review = models.BooleanField(
-        default=True,
-        help_text="Whether this page needs to be reviewed"
+        default=True, help_text="Whether this page needs to be reviewed"
     )
 
     def __str__(self):
@@ -230,12 +224,30 @@ class Page(BaseModel):
     #     return reverse("page", kwargs={"slug": self.slug})
 
 
-class Email(BaseModel):
+class EmailSent(BaseModel):
     profile = models.ForeignKey(
         Profile,
         on_delete=models.CASCADE,
-        related_name="emails",
+        related_name="emails_sent",
     )
 
     def __str__(self):
         return f"{self.created_at} <{self.profile.user.email}>"
+
+
+class EmailPreference(BaseModel):
+    profile = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name="email_preferences",
+    )
+    email_address = models.EmailField(help_text="Email address to receive notifications")
+    enabled = models.BooleanField(
+        default=True, help_text="Whether to send notifications to this email"
+    )
+
+    class Meta:
+        unique_together = ("profile", "email_address")
+
+    def __str__(self):
+        return f"{self.email_address} ({'enabled' if self.enabled else 'disabled'})"

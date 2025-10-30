@@ -151,12 +151,13 @@ class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         from core.forms import get_timezone_list
+        from core.models import EmailPreference
 
         context = super().get_context_data(**kwargs)
         user = self.request.user
 
-        email_address = EmailAddress.objects.get_for_user(user, user.email)
-        context["email_verified"] = email_address.verified
+        primary_email = EmailAddress.objects.get_for_user(user, user.email)
+        context["email_verified"] = primary_email.verified
         context["resend_confirmation_url"] = reverse("resend_confirmation")
         context["has_subscription"] = user.profile.has_active_subscription
 
@@ -170,6 +171,9 @@ class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         context["sitemaps"] = sitemaps
         context["sitemap_forms"] = sitemap_forms
         context["timezones"] = get_timezone_list()
+        context["email_preferences"] = EmailPreference.objects.filter(
+            profile=user.profile
+        ).order_by("-created_at")
 
         return context
 
