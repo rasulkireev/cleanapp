@@ -140,7 +140,11 @@ def track_state_change(
     return f"Tracked state change from {from_state} to {to_state} for profile {profile_id}"
 
 
-def process_sitemap_pages(sitemap_id: int) -> str:
+def process_sitemap_pages(sitemap_id: int, max_sitemaps: int = 100) -> str:  # noqa: C901
+    """
+    TODO: Refactor this function to reduce complexity.
+    Consider extracting helper functions for validation, sitemap fetching, and page creation.
+    """
     from core.models import Page, Sitemap
 
     try:
@@ -148,43 +152,131 @@ def process_sitemap_pages(sitemap_id: int) -> str:
     except Sitemap.DoesNotExist:
         return f"Sitemap with id {sitemap_id} not found."
 
-    try:
-        response = requests.get(sitemap.sitemap_url, timeout=30)
-        response.raise_for_status()
-    except requests.RequestException as e:
-        return f"Failed to fetch sitemap: {str(e)}"
+    pages_created = 0
+    pages_skipped = 0
+    sitemaps_processed = 0
+    visited_urls = set()
+
+    def fetch_and_parse_sitemap(sitemap_url: str, depth: int = 0) -> tuple[int, int, int]:  # noqa: C901
+        nonlocal pages_created, pages_skipped, sitemaps_processed, visited_urls
+
+        if depth > 10:
+            logger.warning(
+                "Max recursion depth reached",
+                sitemap_id=sitemap_id,
+                sitemap_url=sitemap_url,
+                depth=depth,
+            )
+            return pages_created, pages_skipped, sitemaps_processed
+
+        if sitemaps_processed >= max_sitemaps:
+            logger.warning(
+                "Max sitemaps limit reached",
+                sitemap_id=sitemap_id,
+                max_sitemaps=max_sitemaps,
+            )
+            return pages_created, pages_skipped, sitemaps_processed
+
+        if sitemap_url in visited_urls:
+            logger.warning(
+                "Circular reference detected",
+                sitemap_id=sitemap_id,
+                sitemap_url=sitemap_url,
+            )
+            return pages_created, pages_skipped, sitemaps_processed
+
+        visited_urls.add(sitemap_url)
+
+        try:
+            response = requests.get(sitemap_url, timeout=30)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            logger.error(
+                "Failed to fetch sitemap",
+                sitemap_id=sitemap_id,
+                sitemap_url=sitemap_url,
+                error=str(e),
+                exc_info=True,
+            )
+            raise
+
+        try:
+            root = ET.fromstring(response.content)
+            namespace = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+
+            nested_sitemaps = root.findall(".//ns:sitemap/ns:loc", namespace)
+            if not nested_sitemaps:
+                nested_sitemaps = root.findall(".//sitemap/loc")
+
+            if nested_sitemaps:
+                logger.info(
+                    "Found nested sitemaps",
+                    sitemap_id=sitemap_id,
+                    parent_sitemap_url=sitemap_url,
+                    nested_count=len(nested_sitemaps),
+                    depth=depth,
+                )
+                for nested_sitemap_element in nested_sitemaps:
+                    nested_url = nested_sitemap_element.text
+                    if nested_url:
+                        sitemaps_processed += 1
+                        fetch_and_parse_sitemap(nested_url, depth + 1)
+                return pages_created, pages_skipped, sitemaps_processed
+
+            urls = root.findall(".//ns:url/ns:loc", namespace)
+            if not urls:
+                urls = root.findall(".//url/loc")
+
+            for url_element in urls:
+                url = url_element.text
+                if not url:
+                    continue
+
+                existing_page = Page.objects.filter(sitemap=sitemap, url=url).first()
+
+                if existing_page:
+                    pages_skipped += 1
+                    continue
+
+                Page.objects.create(profile=sitemap.profile, sitemap=sitemap, url=url)
+                pages_created += 1
+
+            return pages_created, pages_skipped, sitemaps_processed
+
+        except ET.ParseError as e:
+            logger.error(
+                "Failed to parse sitemap XML",
+                sitemap_id=sitemap_id,
+                sitemap_url=sitemap_url,
+                error=str(e),
+                exc_info=True,
+            )
+            raise
 
     try:
-        root = ET.fromstring(response.content)
-        namespace = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
-        urls = root.findall(".//ns:url/ns:loc", namespace)
+        sitemaps_processed = 1
+        fetch_and_parse_sitemap(sitemap.sitemap_url)
 
-        if not urls:
-            urls = root.findall(".//url/loc")
+        logger.info(
+            "Sitemap processing complete",
+            sitemap_id=sitemap_id,
+            sitemap_url=sitemap.sitemap_url,
+            pages_created=pages_created,
+            pages_skipped=pages_skipped,
+            sitemaps_processed=sitemaps_processed,
+        )
 
-        pages_created = 0
-        pages_skipped = 0
+        return f"Processed sitemap {sitemap_id}: created {pages_created} pages, skipped {pages_skipped} existing pages, processed {sitemaps_processed} sitemap(s)"  # noqa: E501
 
-        for url_element in urls:
-            url = url_element.text
-            if not url:
-                continue
-
-            existing_page = Page.objects.filter(sitemap=sitemap, url=url).first()
-
-            if existing_page:
-                pages_skipped += 1
-                continue
-
-            Page.objects.create(profile=sitemap.profile, sitemap=sitemap, url=url)
-            pages_created += 1
-
-        return f"Processed sitemap {sitemap_id}: created {pages_created} pages, skipped {pages_skipped} existing pages"  # noqa: E501
-
-    except ET.ParseError as e:
-        return f"Failed to parse sitemap XML: {str(e)}"
     except Exception as e:
-        return f"Unexpected error: {str(e)}"
+        logger.error(
+            "Sitemap processing failed",
+            sitemap_id=sitemap_id,
+            sitemap_url=sitemap.sitemap_url,
+            error=str(e),
+            exc_info=True,
+        )
+        return f"Failed to process sitemap: {str(e)}"
 
 
 def send_page_email_to_profile(profile_id: int) -> str:
