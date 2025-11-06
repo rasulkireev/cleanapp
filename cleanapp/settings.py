@@ -251,6 +251,7 @@ ACCOUNT_USERNAME_REQUIRED = True
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_SESSION_REMEMBER = True
+ACCOUNT_EMAIL_SUBJECT_PREFIX = ""
 ACCOUNT_FORMS = {
     "signup": "core.forms.CustomSignUpForm",
     "login": "core.forms.CustomLoginForm",
