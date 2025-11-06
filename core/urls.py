@@ -13,14 +13,22 @@ urlpatterns = [
     # blog
     path("blog", views.BlogView.as_view(), name="blog_posts"),
     path("blog/<slug:slug>", views.BlogPostView.as_view(), name="blog_post"),
-
     # app
     path("api/", api.urls),
     # utils
     path("resend-confirmation/", views.resend_confirmation_email, name="resend_confirmation"),
     path("review-page/<int:page_id>/", views.review_page_redirect, name="review_page_redirect"),
     path("send-test-email/", views.send_test_email, name="send_test_email"),
-    path("trigger-schedule-review-emails/", views.trigger_schedule_review_emails, name="trigger_schedule_review_emails"),
+    path(
+        "trigger-schedule-review-emails/",
+        views.trigger_schedule_review_emails,
+        name="trigger_schedule_review_emails",
+    ),
+    path(
+        "trigger-schedule-sitemap-reparse/",
+        views.trigger_schedule_sitemap_reparse,
+        name="trigger_schedule_sitemap_reparse",
+    ),
     # payments
     path("pricing", views.PricingView.as_view(), name="pricing"),
     path(
@@ -29,9 +37,8 @@ urlpatterns = [
         name="user_upgrade_checkout_session",
     ),
     path(
-      "create-customer-portal/",
-      views.create_customer_portal_session,
-      name="create_customer_portal_session"
+        "create-customer-portal/",
+        views.create_customer_portal_session,
+        name="create_customer_portal_session",
     ),
-
 ]

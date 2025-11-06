@@ -17,10 +17,12 @@ class SitemapAdmin(admin.ModelAdmin):
         "profile",
         "pages_per_review",
         "review_cadence",
+        "is_active",
         "created_at",
     )
-    list_filter = ("review_cadence", "created_at")
+    list_filter = ("review_cadence", "is_active", "created_at")
     search_fields = ("sitemap_url", "profile__user__email")
+    list_editable = ("is_active",)
 
 
 @admin.register(Page)
@@ -29,14 +31,15 @@ class PageAdmin(admin.ModelAdmin):
         "url",
         "profile",
         "sitemap",
+        "is_active",
         "needs_review",
         "reviewed",
         "reviewed_at",
         "created_at",
     )
-    list_filter = ("needs_review", "reviewed", "created_at")
+    list_filter = ("is_active", "needs_review", "reviewed", "created_at")
     search_fields = ("url", "profile__user__email")
-    list_editable = ("needs_review",)
+    list_editable = ("is_active", "needs_review")
 
 
 @admin.register(EmailSent)
