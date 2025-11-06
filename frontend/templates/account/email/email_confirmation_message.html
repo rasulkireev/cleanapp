@@ -4,7 +4,7 @@
 <mjml>
   <mj-head>
     <mj-style>
-      .btn-reset {
+      .btn-confirm {
         display: inline-block;
         padding: 12px 24px;
         border-radius: 8px;
@@ -16,7 +16,7 @@
         line-height: 24px;
         text-align: center;
       }
-      .btn-reset:hover {
+      .btn-confirm:hover {
         background-color: #1d4ed8;
       }
     </mj-style>
@@ -40,16 +40,16 @@
     <mj-section background-color="#ffffff" padding="0 20px 20px 20px">
       <mj-column>
         <mj-text font-size="18px" color="#1f2937" font-weight="600" padding="0 0 10px 0">
-          Password Reset Request
+          Confirm Your Email Address
         </mj-text>
         <mj-text font-size="16px" color="#4b5563" line-height="24px" padding="0 0 20px 0">
           Hello,
         </mj-text>
         <mj-text font-size="16px" color="#4b5563" line-height="24px" padding="0 0 20px 0">
-          You're receiving this email because you requested a password reset for your account at {{ site_name }}.
+          Thank you for signing up! To complete your registration, please confirm your email address.
         </mj-text>
         <mj-text font-size="16px" color="#4b5563" line-height="24px" padding="0 0 30px 0">
-          Please click the button below to reset your password:
+          Click the button below to verify your email:
         </mj-text>
       </mj-column>
     </mj-section>
@@ -63,9 +63,9 @@
           font-weight="600"
           border-radius="8px"
           padding="12px 24px"
-          href="{{ password_reset_url }}"
+          href="{{ activate_url }}"
         >
-          Reset Your Password
+          Confirm Email Address
         </mj-button>
       </mj-column>
     </mj-section>
@@ -76,10 +76,10 @@
           Or copy and paste this link into your browser:
         </mj-text>
         <mj-text font-size="13px" color="#2563eb" line-height="20px" padding="0 0 20px 0">
-          {{ password_reset_url }}
+          {{ activate_url }}
         </mj-text>
         <mj-text font-size="14px" color="#6b7280" line-height="20px" padding="20px 0 0 0">
-          If you didn't request this password reset, you can safely ignore this email.
+          If you didn't create an account, you can safely ignore this email.
         </mj-text>
       </mj-column>
     </mj-section>
