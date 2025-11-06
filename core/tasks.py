@@ -6,6 +6,7 @@ from urllib.parse import unquote, urlparse
 
 import posthog
 import requests
+from bs4 import BeautifulSoup
 from django.conf import settings
 from django.db.models import Count
 from django.utils import timezone
@@ -279,6 +280,126 @@ def process_sitemap_pages(sitemap_id: int, max_sitemaps: int = 100) -> str:  # n
         return f"Failed to process sitemap: {str(e)}"
 
 
+def fetch_page_metadata(url: str) -> dict:
+    try:
+        response = requests.get(
+            url, timeout=10, headers={"User-Agent": "Mozilla/5.0 (compatible; CleanappBot/1.0)"}
+        )
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.content, "html.parser")
+
+        title = None
+        if soup.title and soup.title.string:
+            title = soup.title.string.strip()
+
+        og_title = soup.find("meta", property="og:title")
+        if og_title and og_title.get("content"):
+            title = og_title.get("content").strip()
+
+        description = None
+        meta_desc = soup.find("meta", attrs={"name": "description"})
+        if meta_desc and meta_desc.get("content"):
+            description = meta_desc.get("content").strip()
+
+        og_description = soup.find("meta", property="og:description")
+        if og_description and og_description.get("content"):
+            description = og_description.get("content").strip()
+
+        author = None
+        meta_author = soup.find("meta", attrs={"name": "author"})
+        if meta_author and meta_author.get("content"):
+            author = meta_author.get("content").strip()
+
+        og_author = soup.find("meta", property="article:author")
+        if og_author and og_author.get("content"):
+            author = og_author.get("content").strip()
+
+        keywords = None
+        meta_keywords = soup.find("meta", attrs={"name": "keywords"})
+        if meta_keywords and meta_keywords.get("content"):
+            keywords = meta_keywords.get("content").strip()
+
+        og_image = soup.find("meta", property="og:image")
+        og_image_url = (
+            og_image.get("content").strip() if og_image and og_image.get("content") else None
+        )
+
+        og_type = soup.find("meta", property="og:type")
+        og_type_value = (
+            og_type.get("content").strip() if og_type and og_type.get("content") else None
+        )
+
+        twitter_card = soup.find("meta", attrs={"name": "twitter:card"})
+        twitter_card_value = (
+            twitter_card.get("content").strip()
+            if twitter_card and twitter_card.get("content")
+            else None
+        )
+
+        twitter_title = soup.find("meta", attrs={"name": "twitter:title"})
+        twitter_title_value = (
+            twitter_title.get("content").strip()
+            if twitter_title and twitter_title.get("content")
+            else None
+        )
+
+        twitter_description = soup.find("meta", attrs={"name": "twitter:description"})
+        twitter_description_value = (
+            twitter_description.get("content").strip()
+            if twitter_description and twitter_description.get("content")
+            else None
+        )
+
+        twitter_image = soup.find("meta", attrs={"name": "twitter:image"})
+        twitter_image_url = (
+            twitter_image.get("content").strip()
+            if twitter_image and twitter_image.get("content")
+            else None
+        )
+
+        metadata = {
+            "title": title,
+            "description": description,
+            "author": author,
+            "keywords": keywords,
+            "og_image": og_image_url,
+            "og_type": og_type_value,
+            "twitter_card": twitter_card_value,
+            "twitter_title": twitter_title_value,
+            "twitter_description": twitter_description_value,
+            "twitter_image": twitter_image_url,
+        }
+
+        logger.info(
+            "Page metadata fetched successfully",
+            url=url,
+            has_title=bool(title),
+            has_description=bool(description),
+            has_author=bool(author),
+            has_keywords=bool(keywords),
+            has_og_tags=bool(og_image_url or og_type_value),
+            has_twitter_tags=bool(twitter_card_value or twitter_title_value),
+        )
+
+        return metadata
+
+    except requests.RequestException as e:
+        logger.warning(
+            "Failed to fetch page for metadata extraction",
+            url=url,
+            error=str(e),
+        )
+        return {}
+    except Exception as e:
+        logger.warning(
+            "Failed to extract page metadata",
+            url=url,
+            error=str(e),
+        )
+        return {}
+
+
 def send_page_email_to_profile(profile_id: int) -> str:
     from django.core.mail import EmailMultiAlternatives
     from django.template.loader import render_to_string
@@ -308,6 +429,19 @@ def send_page_email_to_profile(profile_id: int) -> str:
         if unreviewed_pages.exists():
             pages_list = []
             for page in unreviewed_pages:
+                metadata = fetch_page_metadata(page.url)
+
+                page.title = metadata.get("title")
+                page.description = metadata.get("description")
+                page.author = metadata.get("author")
+                page.keywords = metadata.get("keywords")
+                page.og_image = metadata.get("og_image")
+                page.og_type = metadata.get("og_type")
+                page.twitter_card = metadata.get("twitter_card")
+                page.twitter_title = metadata.get("twitter_title")
+                page.twitter_description = metadata.get("twitter_description")
+                page.twitter_image = metadata.get("twitter_image")
+
                 review_url = f"{settings.SITE_URL}{reverse('review_page_redirect', kwargs={'page_id': page.id})}"  # noqa: E501
                 page.review_url = review_url
 
@@ -430,3 +564,138 @@ def schedule_review_emails() -> str:
             emails_scheduled += 1
 
     return f"Checked {profiles_checked} profiles, scheduled {emails_scheduled} emails"
+
+
+def reparse_sitemap(sitemap_id: int) -> str:
+    from core.models import Page, Sitemap
+    from core.utils import extract_urls_from_sitemap
+
+    try:
+        sitemap = Sitemap.objects.get(id=sitemap_id)
+    except Sitemap.DoesNotExist:
+        return f"Sitemap with id {sitemap_id} not found."
+
+    sitemap_url = sitemap.sitemap_url
+
+    logger.info(
+        "Starting sitemap reparse",
+        sitemap_id=sitemap_id,
+        sitemap_url=sitemap_url,
+    )
+
+    try:
+        response = requests.get(sitemap_url, timeout=30)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.warning(
+            "Sitemap no longer accessible, marking as inactive",
+            sitemap_id=sitemap_id,
+            sitemap_url=sitemap_url,
+            error=str(e),
+        )
+        sitemap.is_active = False
+        sitemap.save(update_fields=["is_active"])
+        return f"Sitemap {sitemap_id} marked as inactive (not accessible)"
+
+    existing_page_urls = set(Page.objects.filter(sitemap=sitemap).values_list("url", flat=True))
+
+    try:
+        found_urls = extract_urls_from_sitemap(response.content, sitemap_id=sitemap_id)
+
+        new_urls = found_urls - existing_page_urls
+        new_pages_found = 0
+        if new_urls:
+            for url in new_urls:
+                Page.objects.create(profile=sitemap.profile, sitemap=sitemap, url=url)
+                new_pages_found += 1
+                logger.info(
+                    "New page found and added",
+                    sitemap_id=sitemap_id,
+                    url=url,
+                )
+
+        removed_urls = existing_page_urls - found_urls
+        if removed_urls:
+            pages_to_mark = Page.objects.filter(sitemap=sitemap, url__in=removed_urls)
+            pages_to_mark.update(is_active=False)
+            logger.info(
+                "Pages no longer in sitemap marked as inactive",
+                sitemap_id=sitemap_id,
+                sitemap_url=sitemap_url,
+                removed_count=len(removed_urls),
+            )
+
+        still_active_urls = existing_page_urls & found_urls
+        if still_active_urls:
+            pages_to_reactivate = Page.objects.filter(
+                sitemap=sitemap, url__in=still_active_urls, is_active=False
+            )
+            reactivated_count = pages_to_reactivate.count()
+            if reactivated_count > 0:
+                pages_to_reactivate.update(is_active=True)
+                logger.info(
+                    "Pages reactivated (were previously marked inactive)",
+                    sitemap_id=sitemap_id,
+                    sitemap_url=sitemap_url,
+                    reactivated_count=reactivated_count,
+                )
+
+        logger.info(
+            "Sitemap reparsed successfully",
+            sitemap_id=sitemap_id,
+            sitemap_url=sitemap_url,
+            new_pages=new_pages_found,
+            removed_pages=len(removed_urls),
+        )
+
+        return (
+            f"Reparsed sitemap {sitemap_id}: "
+            f"found {new_pages_found} new pages, "
+            f"marked {len(removed_urls)} pages as inactive"
+        )
+
+    except Exception as e:
+        logger.error(
+            "Failed to reparse sitemap",
+            sitemap_id=sitemap_id,
+            sitemap_url=sitemap_url,
+            error=str(e),
+            exc_info=True,
+        )
+        return f"Failed to reparse sitemap {sitemap_id}: {str(e)}"
+
+
+def schedule_sitemap_reparse() -> str:
+    from core.models import Sitemap
+
+    all_sitemaps = Sitemap.objects.filter(is_active=True)
+
+    total_sitemaps = all_sitemaps.count()
+    tasks_scheduled = 0
+
+    logger.info(
+        "Starting to schedule sitemap reparse tasks",
+        total_sitemaps=total_sitemaps,
+    )
+
+    for sitemap in all_sitemaps:
+        async_task(
+            "core.tasks.reparse_sitemap",
+            sitemap_id=sitemap.id,
+            group="Sitemap Reparse",
+        )
+        tasks_scheduled += 1
+
+        logger.info(
+            "Scheduled reparse task for sitemap",
+            sitemap_id=sitemap.id,
+            sitemap_url=sitemap.sitemap_url,
+        )
+
+    logger.info(
+        "Finished scheduling sitemap reparse tasks",
+        total_sitemaps=total_sitemaps,
+        tasks_scheduled=tasks_scheduled,
+    )
+
+    return f"Scheduled {tasks_scheduled} sitemap reparse tasks"

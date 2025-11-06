@@ -185,6 +185,10 @@ class Sitemap(BaseModel):
         default=ReviewCadence.DAILY,
         help_text="How often to send review emails",
     )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this sitemap is still accessible and should be processed",
+    )
 
     def __str__(self):
         return f"{self.sitemap_url} - <{self.profile}>"
@@ -215,6 +219,10 @@ class Page(BaseModel):
     reviewed_at = models.DateTimeField(null=True, blank=True)
     needs_review = models.BooleanField(
         default=True, help_text="Whether this page needs to be reviewed"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this page is still present in the sitemap",
     )
 
     def __str__(self):

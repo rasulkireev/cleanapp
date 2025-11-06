@@ -6,6 +6,7 @@ from allauth.account.utils import send_email_confirmation
 from allauth.account.views import SignupView
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.messages.views import SuccessMessageMixin
@@ -416,7 +417,7 @@ class AdminPanelView(UserPassesTestMixin, TemplateView):
         return context
 
 
-@login_required
+@staff_member_required
 def send_test_email(request):
     if not request.user.is_superuser:
         messages.error(request, "You don't have permission to perform this action.")
@@ -442,7 +443,7 @@ def send_test_email(request):
     return redirect("admin_panel")
 
 
-@login_required
+@staff_member_required
 def trigger_schedule_review_emails(request):
     if not request.user.is_superuser:
         messages.error(request, "You don't have permission to perform this action.")
@@ -461,5 +462,28 @@ def trigger_schedule_review_emails(request):
         )
 
         messages.success(request, "Review email scheduling task has been queued!")
+
+    return redirect("admin_panel")
+
+
+@staff_member_required
+def trigger_schedule_sitemap_reparse(request):
+    if not request.user.is_superuser:
+        messages.error(request, "You don't have permission to perform this action.")
+        return redirect("home")
+
+    if request.method == "POST":
+        async_task(
+            "core.tasks.schedule_sitemap_reparse",
+            group="Schedule Sitemap Reparse",
+        )
+
+        logger.info(
+            "Schedule sitemap reparse task triggered",
+            email=request.user.email,
+            profile_id=request.user.profile.id,
+        )
+
+        messages.success(request, "Sitemap reparse scheduling task has been queued!")
 
     return redirect("admin_panel")
