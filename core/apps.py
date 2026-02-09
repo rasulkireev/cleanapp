@@ -1,8 +1,6 @@
 import posthog
-
-
-from django.conf import settings
 from django.apps import AppConfig
+from django.conf import settings
 
 from cleanapp.utils import get_cleanapp_logger
 
@@ -15,8 +13,7 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         import core.signals  # noqa
-        import core.webhooks # noqa
-        
+        import core.stripe_webhooks  # noqa
 
         if settings.POSTHOG_API_KEY:
             posthog.api_key = settings.POSTHOG_API_KEY
@@ -24,4 +21,3 @@ class CoreConfig(AppConfig):
 
         if settings.ENVIRONMENT == "dev":
             posthog.debug = True
-        

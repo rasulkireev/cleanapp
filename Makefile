@@ -15,13 +15,10 @@ migrate:
 	docker compose -f docker-compose-local.yml run --rm backend python ./manage.py migrate
 
 test:
-	docker compose -f docker-compose-local.yml run --rm backend pytest
+	docker compose -f docker-compose-local.yml run --rm backend pytest $(filter-out $@,$(MAKECMDGOALS))
+
+%:
+	@:
 
 restart-worker:
 	docker compose -f docker-compose-local.yml up -d workers --force-recreate
-
-test-webhook:
-	docker compose -f docker-compose-local.yml run --rm stripe trigger customer.subscription.created
-
-stripe-sync:
-	docker compose -f docker-compose-local.yml run --rm backend python ./manage.py djstripe_sync_models Product Price

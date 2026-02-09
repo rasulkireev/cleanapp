@@ -10,21 +10,107 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.messages.views import SuccessMessageMixin
+from django.core.cache import cache
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.views.generic import DetailView, ListView, TemplateView, UpdateView
 from django_q.tasks import async_task
-from djstripe import models as djstripe_models
 
 from cleanapp.utils import get_cleanapp_logger
 from core.choices import ProfileStates
 from core.forms import ProfileUpdateForm, SitemapForm, SitemapSettingsForm
 from core.models import BlogPost, Feedback, Page, Profile, Sitemap
+from core.stripe_webhooks import EVENT_HANDLERS
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
 logger = get_cleanapp_logger(__name__)
+
+
+def get_price_id_for_plan(plan):
+    plan_key = (plan or "").lower()
+    price_id = settings.STRIPE_PRICE_IDS.get(plan_key) or None
+    return price_id
+
+
+def get_or_create_stripe_customer(profile, user):
+    if profile.stripe_customer_id:
+        try:
+            return stripe.Customer.retrieve(profile.stripe_customer_id)
+        except stripe.error.InvalidRequestError as exc:
+            logger.warning(
+                "Stripe customer lookup failed",
+                profile_id=profile.id,
+                stripe_customer_id=profile.stripe_customer_id,
+                error=str(exc),
+            )
+
+    customer = stripe.Customer.create(
+        email=user.email,
+        name=user.get_full_name() or user.username,
+        metadata={"user_id": user.id},
+    )
+    profile.stripe_customer_id = customer.id
+    profile.save(update_fields=["stripe_customer_id"])
+    return customer
+
+
+@csrf_exempt
+def stripe_webhook_view(request):
+    logger.info("Stripe webhook received", request=request)
+
+    if request.method != "POST":
+        return HttpResponse(status=405)
+
+    if not settings.STRIPE_WEBHOOK_SECRET:
+        logger.error("Stripe webhook secret not configured")
+        return HttpResponse(status=500)
+
+    payload = request.body
+    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
+    if not sig_header:
+        return HttpResponseBadRequest("Missing Stripe-Signature header")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload=payload,
+            sig_header=sig_header,
+            secret=settings.STRIPE_WEBHOOK_SECRET,
+        )
+    except ValueError:
+        return HttpResponseBadRequest("Invalid payload")
+    except stripe.error.SignatureVerificationError:
+        return HttpResponseBadRequest("Invalid signature")
+
+    event_id = event.get("id")
+    if event_id:
+        cache_key = f"stripe_event:{event_id}"
+        if cache.get(cache_key):
+            logger.info(
+                "Duplicate Stripe webhook received",
+                event_type=event.get("type"),
+                event_id=event_id,
+            )
+            return HttpResponse(status=200)
+
+    handler = EVENT_HANDLERS.get(event.get("type"))
+    if handler:
+        handler(event)
+    else:
+        logger.info(
+            "Unhandled Stripe webhook",
+            event_type=event.get("type"),
+            event_id=event.get("id"),
+        )
+
+    if event_id:
+        cache.set(cache_key, True, timeout=60 * 60 * 24)
+
+    return HttpResponse(status=200)
 
 
 class LandingPageView(TemplateView):
@@ -157,6 +243,12 @@ class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
 
+        payment_status = self.request.GET.get("payment")
+        if payment_status == "success":
+            messages.success(self.request, "Thanks for subscribing, I hope you enjoy the app!")
+        elif payment_status == "failed":
+            messages.error(self.request, "Something went wrong with the payment.")
+
         primary_email = EmailAddress.objects.get_for_user(user, user.email)
         context["email_verified"] = primary_email.verified
         context["resend_confirmation_url"] = reverse("resend_confirmation")
@@ -250,16 +342,27 @@ class PricingView(TemplateView):
         return context
 
 
+@login_required
+@require_POST
 def create_checkout_session(request, pk, plan):
     user = request.user
-
-    product = djstripe_models.Product.objects.get(name=plan)
-    price = product.prices.filter(active=True).first()
-    customer, _ = djstripe_models.Customer.get_or_create(subscriber=user)
-
     profile = user.profile
-    profile.customer = customer
-    profile.save(update_fields=["customer"])
+    price_id = get_price_id_for_plan(plan)
+    if not price_id:
+        logger.warning("Stripe price id not configured for plan", plan=plan, user_id=user.id)
+        messages.error(request, "Unable to find pricing for the selected plan.")
+        return redirect("pricing")
+
+    try:
+        customer = get_or_create_stripe_customer(profile, user)
+    except stripe.error.StripeError as exc:
+        logger.error(
+            "Stripe customer setup failed",
+            profile_id=profile.id,
+            error=str(exc),
+        )
+        messages.error(request, "Unable to start checkout. Please try again.")
+        return redirect("pricing")
 
     base_success_url = request.build_absolute_uri(reverse("home"))
     base_cancel_url = request.build_absolute_uri(reverse("home"))
@@ -270,25 +373,44 @@ def create_checkout_session(request, pk, plan):
     cancel_params = {"payment": "failed"}
     cancel_url = f"{base_cancel_url}?{urlencode(cancel_params)}"
 
-    checkout_session = stripe.checkout.Session.create(
-        customer=customer.id,
-        payment_method_types=["card"],
-        allow_promotion_codes=True,
-        automatic_tax={"enabled": True},
-        line_items=[
+    session_params = {
+        "customer": customer.id,
+        "payment_method_types": ["card"],
+        "allow_promotion_codes": True,
+        "automatic_tax": {"enabled": True},
+        "line_items": [
             {
-                "price": price.id,
+                "price": price_id,
                 "quantity": 1,
             }
         ],
-        mode="subscription" if plan != "one-time" else "payment",
-        success_url=success_url,
-        cancel_url=cancel_url,
-        customer_update={
+        "mode": "subscription",
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "customer_update": {
             "address": "auto",
         },
-        metadata={"user_id": user.id, "pk": pk, "price_id": price.id},
-    )
+        "client_reference_id": str(user.id),
+        "metadata": {
+            "user_id": user.id,
+            "pk": pk,
+            "price_id": price_id,
+            "plan": plan,
+        },
+        "subscription_data": {"metadata": {"user_id": user.id, "plan": plan}},
+    }
+
+    try:
+        checkout_session = stripe.checkout.Session.create(**session_params)
+    except stripe.error.StripeError as exc:
+        logger.error(
+            "Stripe checkout session creation failed",
+            profile_id=profile.id,
+            plan=plan,
+            error=str(exc),
+        )
+        messages.error(request, "Unable to start checkout. Please try again.")
+        return redirect("pricing")
 
     return redirect(checkout_session.url, code=303)
 
@@ -296,12 +418,25 @@ def create_checkout_session(request, pk, plan):
 @login_required
 def create_customer_portal_session(request):
     user = request.user
-    customer = djstripe_models.Customer.objects.get(subscriber=user)
+    profile = user.profile
+    if not profile.stripe_customer_id:
+        messages.error(request, "No Stripe customer found for this account.")
+        return redirect("pricing")
 
-    session = stripe.billing_portal.Session.create(
-        customer=customer.id,
-        return_url=request.build_absolute_uri(reverse("home")),
-    )
+    try:
+        session = stripe.billing_portal.Session.create(
+            customer=profile.stripe_customer_id,
+            return_url=request.build_absolute_uri(reverse("home")),
+        )
+    except stripe.error.StripeError as exc:
+        logger.error(
+            "Stripe portal session creation failed",
+            profile_id=profile.id,
+            stripe_customer_id=profile.stripe_customer_id,
+            error=str(exc),
+        )
+        messages.error(request, "Unable to open the billing portal. Please try again.")
+        return redirect("pricing")
 
     return redirect(session.url, code=303)
 

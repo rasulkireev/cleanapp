@@ -61,6 +61,9 @@ SITE_URL = env("SITE_URL")
 # Remove the port from the SITE_URL and the https prefix (mostly for dev)
 ALLOWED_HOSTS = [SITE_URL.replace("http://", "").replace("https://", "").split(":")[0]]
 
+if DEBUG:
+    ALLOWED_HOSTS.append("backend")
+
 CSRF_TRUSTED_ORIGINS = [SITE_URL]
 
 INSTALLED_APPS = [
@@ -75,7 +78,6 @@ INSTALLED_APPS = [
     "webpack_boilerplate",
     "widget_tweaks",
     "anymail",
-    "djstripe",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -478,17 +480,16 @@ POSTHOG_API_KEY = env("POSTHOG_API_KEY", default="")
 BUTTONDOWN_API_KEY = env("BUTTONDOWN_API_KEY", default="")
 
 
-STRIPE_LIVE_SECRET_KEY = env("STRIPE_LIVE_SECRET_KEY", default="")
-STRIPE_TEST_SECRET_KEY = env("STRIPE_TEST_SECRET_KEY", default="")
-
-STRIPE_LIVE_MODE = False
-STRIPE_SECRET_KEY = STRIPE_TEST_SECRET_KEY
-if ENVIRONMENT == "prod":
-    STRIPE_LIVE_MODE = True
-    STRIPE_SECRET_KEY = STRIPE_LIVE_SECRET_KEY
-
-DJSTRIPE_WEBHOOK_SECRET = env("DJSTRIPE_WEBHOOK_SECRET", default="")
-DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"
+STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
+STRIPE_LIVE_MODE = ENVIRONMENT == "prod"
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
+STRIPE_WEBHOOK_UUID = env("WEBHOOK_UUID", default="")
+STRIPE_PRICE_ID_MONTHLY = env("STRIPE_PRICE_ID_MONTHLY", default="")
+STRIPE_PRICE_ID_YEARLY = env("STRIPE_PRICE_ID_YEARLY", default="")
+STRIPE_PRICE_IDS = {
+    "monthly": STRIPE_PRICE_ID_MONTHLY,
+    "yearly": STRIPE_PRICE_ID_YEARLY,
+}
 
 
 MJML_BACKEND_MODE = "httpserver"
