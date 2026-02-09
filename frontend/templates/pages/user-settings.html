@@ -15,6 +15,43 @@
         <h1 class="flex-1 pt-2 text-xl font-medium">Settings</h1>
       </div>
     </div>
+    <div class="px-6 py-4">
+      <div class="flex flex-col">
+        <h3 class="mb-2 text-lg font-medium leading-6 text-gray-900">Subscription</h3>
+        <p class="mb-4 text-sm text-gray-600">
+          Manage your plan using Stripe Checkout and Billing Portal.
+        </p>
+        {% if has_subscription %}
+          <form method="post" action="{% url 'create_customer_portal_session' %}">
+            {% csrf_token %}
+            <button
+              type="submit"
+              class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              Manage subscription
+            </button>
+          </form>
+        {% else %}
+          <form method="post" action="{% url 'user_upgrade_checkout_session' pk=user.id plan='monthly' %}">
+            {% csrf_token %}
+            <button
+              type="submit"
+              class="inline-flex justify-center px-4 py-2 w-full text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              Upgrade
+            </button>
+          </form>
+          <p class="mt-2 text-xs text-gray-500">
+            You will be redirected to Stripe Checkout to complete your purchase.
+          </p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="block" aria-hidden="true">
+      <div class="py-5">
+        <div class="border-t border-gray-200"></div>
+      </div>
+    </div>
     <form action="" method="post">
       {% csrf_token %}
 

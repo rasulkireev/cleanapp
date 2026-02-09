@@ -31,6 +31,7 @@ urlpatterns = [
     ),
     # payments
     path("pricing", views.PricingView.as_view(), name="pricing"),
+    path("stripe/webhook/", views.stripe_webhook_view, name="stripe_webhook"),
     path(
         "create-checkout-session/<int:pk>/<str:plan>/",
         views.create_checkout_session,

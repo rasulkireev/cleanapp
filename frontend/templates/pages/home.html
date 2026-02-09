@@ -9,7 +9,7 @@
 {% block content %}
   <div class="container px-4 py-8 mx-auto max-w-3xl bg-white lg:min-w-0 md:pt-10 lg:flex-1" data-controller="sitemap">
     {% if not sitemaps %}
-    <div class="fixed inset-0 z-50 bg-gray-500 bg-opacity-75 backdrop-blur-sm" aria-hidden="true"></div>
+    <div class="fixed inset-0 z-50 bg-gray-500 bg-opacity-75 backdrop-blur-sm" aria-hidden="true" data-sitemap-target="onboardingOverlay"></div>
 
     <div class="overflow-y-auto fixed inset-0 z-50" data-sitemap-target="onboardingModal">
       <div class="flex justify-center items-center px-4 min-h-screen text-center sm:block sm:p-0">
@@ -52,6 +52,13 @@
               </div>
 
               <div class="flex gap-3 justify-end mt-6">
+                <button
+                  type="button"
+                  data-action="click->sitemap#skipOnboarding"
+                  class="inline-flex justify-center px-6 py-3 w-full text-base font-medium text-gray-700 bg-white rounded-md border border-gray-300 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:text-sm"
+                >
+                  Skip Onboarding
+                </button>
                 <button type="submit" class="inline-flex justify-center px-6 py-3 w-full text-base font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:text-sm">
                   Add Sitemap
                 </button>
@@ -71,6 +78,14 @@
           type="button"
           data-action="click->sitemap#toggleForm"
           data-sitemap-target="toggleButton"
+          class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          Add Sitemap
+        </button>
+        {% else %}
+        <button
+          type="button"
+          data-action="click->sitemap#showOnboarding"
           class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
           Add Sitemap

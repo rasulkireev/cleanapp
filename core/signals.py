@@ -17,18 +17,13 @@ def create_user_profile(sender, instance, created, **kwargs):
         profile = Profile.objects.create(user=instance, experimental_flag=True)
         profile.track_state_change(
             to_state=ProfileStates.SIGNED_UP,
+            source="create_user_profile signal",
         )
 
         EmailPreference.objects.create(profile=profile, email_address=instance.email, enabled=True)
 
     if instance.id == 1:
         User.objects.filter(id=1).update(is_staff=True, is_superuser=True)
-
-
-@receiver(post_save, sender=User)
-def save_user_profile(sender, instance, **kwargs):
-    if hasattr(instance, "profile"):
-        instance.profile.save()
 
 
 @receiver(email_confirmed)

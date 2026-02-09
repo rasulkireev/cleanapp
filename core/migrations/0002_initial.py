@@ -13,7 +13,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0001_enable_extensions'),
-        ('djstripe', '0002_2_10'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -48,9 +47,6 @@ class Migration(migrations.Migration):
                 ('key', models.CharField(default=core.model_utils.generate_random_key, max_length=30, unique=True)),
                 ('experimental_flag', models.BooleanField(default=False)),
                 ('state', models.CharField(choices=[('stranger', 'Stranger'), ('signed_up', 'Signed Up'), ('trial_started', 'Trial Started'), ('trial_ended', 'Trial Ended'), ('subscribed', 'Subscribed'), ('cancelled', 'Cancelled'), ('churned', 'Churned'), ('account_deleted', 'Account Deleted')], default='stranger', help_text="The current state of the user's profile", max_length=255)),
-                ('customer', models.ForeignKey(blank=True, help_text="The user's Stripe Customer object, if it exists", null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='profile', to='djstripe.customer')),
-                ('product', models.ForeignKey(blank=True, help_text="The user's Stripe Product object, if it exists", null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='profile', to='djstripe.product')),
-                ('subscription', models.ForeignKey(blank=True, help_text="The user's Stripe Subscription object, if it exists", null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='profile', to='djstripe.subscription')),
                 ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
             ],
             options={
