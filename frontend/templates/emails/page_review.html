@@ -8,60 +8,28 @@
       <mj-text padding="0" />
     </mj-attributes>
     <mj-style>
-      .meta-label {
+      .summary-item {
         font-size: 13px;
-        font-weight: 600;
+        color: #4b5563;
+        line-height: 1.7;
+      }
+      .page-line {
+        font-size: 14px;
         color: #374151;
-        display: inline-block;
-        margin-right: 4px;
-      }
-      .meta-value {
-        font-size: 13px;
-        color: #6b7280;
-      }
-      .field-row {
-        margin-bottom: 8px;
         line-height: 1.6;
       }
-      .meta-section {
-        background-color: #f9fafb;
-        border-radius: 6px;
-        padding: 12px;
-        margin-top: 12px;
-        margin-bottom: 16px;
-      }
-      .meta-section-title {
-        font-size: 12px;
-        font-weight: 600;
+      .muted {
         color: #6b7280;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 8px;
       }
-      .meta-tag {
-        font-size: 12px;
-        color: #6b7280;
-        margin-bottom: 4px;
-        line-height: 1.4;
-      }
-      .meta-tag-label {
+      .title {
+        color: #111827;
         font-weight: 600;
-        color: #4b5563;
-        margin-right: 4px;
-      }
-      .meta-check {
-        color: #10b981;
-        margin-right: 4px;
-      }
-      .meta-cross {
-        color: #ef4444;
-        margin-right: 4px;
       }
     </mj-style>
   </mj-head>
 
   <mj-body background-color="#f9fafb">
-    <mj-section background-color="#f9fafb" padding="32px 24px 24px">
+    <mj-section background-color="#f9fafb" padding="32px 24px 20px">
       <mj-column>
         <mj-text font-size="24px" font-weight="700" color="#111827" align="center">
           Cleanapp
@@ -69,129 +37,70 @@
       </mj-column>
     </mj-section>
 
-    <mj-section background-color="#f9fafb" padding="0 24px 32px">
+    <mj-section background-color="#f9fafb" padding="0 24px 24px">
       <mj-column>
-        <mj-text font-size="16px" color="#111827" line-height="1.5" padding="0 0 12px 0">
+        <mj-text font-size="16px" color="#111827" line-height="1.5" padding="0 0 10px 0">
           Hi {{ user.first_name|default:user.username }},
         </mj-text>
         <mj-text font-size="15px" color="#4b5563" line-height="1.6">
-          It's time to review {{ total_pages }} page{{ total_pages|pluralize }} from your sitemap{{ total_sitemaps|pluralize }}:
+          {{ digest_period_label }} for your agency workspace. We found {{ total_due_pages }} due page{{ total_due_pages|pluralize }} and included {{ total_pages }} for one-click review now.
         </mj-text>
       </mj-column>
     </mj-section>
 
-    {% for sitemap_data in sitemaps_with_pages %}
-    <mj-section background-color="#f9fafb" padding="0 24px {% if forloop.last %}32{% else %}24{% endif %}px">
-      <mj-column border="1px solid #e5e7eb" border-radius="8px" padding="0" background-color="#ffffff">
-        <mj-text font-size="13px" font-weight="600" color="#374151" text-transform="uppercase" letter-spacing="0.5px" padding="20px 20px 4px">
-          {{ sitemap_data.sitemap.sitemap_url }}
+    <mj-section background-color="#f9fafb" padding="0 24px 24px">
+      <mj-column background-color="#ffffff" border="1px solid #e5e7eb" border-radius="8px" padding="20px">
+        <mj-text font-size="13px" font-weight="700" color="#374151" text-transform="uppercase" letter-spacing="0.6px" padding="0 0 12px 0">
+          {% if is_weekly_summary %}Weekly Summary{% else %}Digest Summary{% endif %}
         </mj-text>
-        <mj-text font-size="13px" color="#6b7280" padding="0 20px 20px">
-          {{ sitemap_data.pages_count }} page{{ sitemap_data.pages_count|pluralize }} to review
-        </mj-text>
-
-        {% for page in sitemap_data.pages %}
-        {% if not forloop.first %}
-        <mj-divider border-color="#e5e7eb" border-width="1px" padding="0 20px" />
-        {% endif %}
-
-        <mj-text padding="20px 20px 0">
-          {% if page.title %}
-          <div class="field-row">
-            <span class="meta-label">Title:</span>
-            <span class="meta-value">{{ page.title }}</span>
-          </div>
-          {% endif %}
-
-          <div class="field-row">
-            <span class="meta-label">Path:</span>
-            <span class="meta-value">{{ page.url_path }}</span>
-          </div>
-
-          <div class="meta-section">
-            <div class="meta-section-title">Meta Tags</div>
-
-            <div class="meta-tag">
-              <span class="meta-tag-label">Description:</span>
-              {% if page.description %}
-                {{ page.description }}
-              {% else %}
-                <span class="meta-cross">✗</span> Not present
-              {% endif %}
-            </div>
-
-            <div class="meta-tag">
-              <span class="meta-tag-label">Author:</span>
-              {% if page.author %}
-                {{ page.author }}
-              {% else %}
-                <span class="meta-cross">✗</span> Not present
-              {% endif %}
-            </div>
-
-            <div class="meta-tag">
-              <span class="meta-tag-label">Keywords:</span>
-              {% if page.keywords %}
-                {{ page.keywords }}
-              {% else %}
-                <span class="meta-cross">✗</span> Not present
-              {% endif %}
-            </div>
-
-            <div class="meta-tag">
-              <span class="meta-tag-label">OG Tags:</span>
-              {% if page.og_image or page.og_type %}
-                <div style="margin-left: 16px; margin-top: 4px;">
-                  <div style="margin-bottom: 2px;">
-                    type: {% if page.og_type %}{{ page.og_type }}{% else %}<span style="color: #9ca3af;">Not present</span>{% endif %}
-                  </div>
-                  <div>
-                    image: {% if page.og_image %}<a href="{{ page.og_image }}" target="_blank" rel="noopener noreferrer" style="color: #6366f1; text-decoration: underline;">link</a>{% else %}<span style="color: #9ca3af;">Not present</span>{% endif %}
-                  </div>
-                </div>
-              {% else %}
-                <span class="meta-cross">✗</span> Not present
-              {% endif %}
-            </div>
-
-            <div class="meta-tag">
-              <span class="meta-tag-label">Twitter:</span>
-              {% if page.twitter_card %}
-                <div style="margin-left: 16px; margin-top: 4px;">
-                  <div style="margin-bottom: 2px;">
-                    card: {{ page.twitter_card }}
-                  </div>
-                  <div>
-                    image: {% if page.twitter_image %}<a href="{{ page.twitter_image }}" target="_blank" rel="noopener noreferrer" style="color: #6366f1; text-decoration: underline;">link</a>{% else %}<span style="color: #9ca3af;">Not present</span>{% endif %}
-                  </div>
-                </div>
-              {% else %}
-                <span class="meta-cross">✗</span> Not present
-              {% endif %}
-            </div>
-
-            <div class="meta-tag">
-              <span class="meta-tag-label">Schema Validation:</span>
-              <a href="https://validator.schema.org/#url={{ page.url|urlencode }}" target="_blank" rel="noopener noreferrer" style="color: #6366f1; text-decoration: underline;">Check structured data</a>
-            </div>
-          </div>
-        </mj-text>
-
-        <mj-button href="{{ page.review_url }}" background-color="#6366f1" color="#ffffff" border-radius="6px" font-size="14px" font-weight="600" padding="0 20px 20px" inner-padding="12px 24px">
-          Review This Page
-        </mj-button>
-        {% endfor %}
+        <mj-text css-class="summary-item" padding="0 0 6px 0">• Clients: <span class="title">{{ total_clients }}</span></mj-text>
+        <mj-text css-class="summary-item" padding="0 0 6px 0">• Active sites: <span class="title">{{ total_active_sites }}</span></mj-text>
+        <mj-text css-class="summary-item" padding="0 0 6px 0">• Sites with due pages: <span class="title">{{ sites_with_due_pages }}</span></mj-text>
+        <mj-text css-class="summary-item" padding="0">• Pages included in this email: <span class="title">{{ total_pages }}</span></mj-text>
       </mj-column>
     </mj-section>
+
+    {% for client_group in client_groups %}
+    <mj-section background-color="#f9fafb" padding="0 24px 12px">
+      <mj-column>
+        <mj-text font-size="13px" font-weight="700" color="#374151" text-transform="uppercase" letter-spacing="0.6px" padding="0 0 4px 0">
+          Client: {{ client_group.client_label }}
+        </mj-text>
+        <mj-text font-size="13px" color="#6b7280" padding="0 0 8px 0">
+          {{ client_group.sites_count }} site{{ client_group.sites_count|pluralize }} · {{ client_group.due_pages_count }} due page{{ client_group.due_pages_count|pluralize }}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+      {% for sitemap_data in client_group.sites %}
+      <mj-section background-color="#f9fafb" padding="0 24px {% if forloop.last and forloop.parentloop.last %}24{% else %}16{% endif %}px">
+        <mj-column background-color="#ffffff" border="1px solid #e5e7eb" border-radius="8px" padding="20px">
+          <mj-text font-size="14px" font-weight="600" color="#111827" padding="0 0 6px 0">
+            {{ sitemap_data.sitemap.sitemap_url }}
+          </mj-text>
+          <mj-text font-size="13px" color="#6b7280" padding="0 0 12px 0">
+            {{ sitemap_data.pages_count }} page{{ sitemap_data.pages_count|pluralize }} in this email · {{ sitemap_data.due_pages_count }} due in queue
+          </mj-text>
+
+          {% for page in sitemap_data.pages %}
+          <mj-divider border-color="#eef2f7" border-width="1px" padding="0 0 12px 0" />
+          <mj-text css-class="page-line" padding="0 0 8px 0">
+            <span class="title">{{ page.title|default:page.url_path }}</span>
+            <span class="muted"> · {{ page.url_path }}</span>
+          </mj-text>
+          <mj-button href="{{ page.review_url }}" background-color="#4f46e5" color="#ffffff" border-radius="6px" font-size="13px" font-weight="600" padding="0 0 8px 0" inner-padding="10px 16px" align="left">
+            One-click review
+          </mj-button>
+          {% endfor %}
+        </mj-column>
+      </mj-section>
+      {% endfor %}
     {% endfor %}
 
-    <mj-section background-color="#f9fafb" padding="30px 20px">
+    <mj-section background-color="#f9fafb" padding="20px 24px 24px">
       <mj-column>
         <mj-text font-size="14px" color="#6b7280" align="center" line-height="20px">
-          This is an automated reminder to help you keep your pages up to date.
-        </mj-text>
-        <mj-text font-size="14px" color="#6b7280" align="center" line-height="20px" padding="10px 0 0 0">
-          Have questions? Reply to this email and I'll be happy to help!
+          This is an automated reminder to keep client pages fresh and review-ready.
         </mj-text>
       </mj-column>
     </mj-section>

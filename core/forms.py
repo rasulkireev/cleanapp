@@ -74,33 +74,65 @@ class ProfileUpdateForm(forms.ModelForm):
 class SitemapForm(forms.ModelForm):
     class Meta:
         model = Sitemap
-        fields = ['sitemap_url']
+        fields = ["sitemap_url", "client_label"]
         widgets = {
-            'sitemap_url': forms.URLInput(attrs={
-                'class': 'block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
-                'placeholder': 'https://example.com/sitemap.xml'
-            })
+            "sitemap_url": forms.URLInput(
+                attrs={
+                    "class": "block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
+                    "placeholder": "https://example.com/sitemap.xml",
+                }
+            ),
+            "client_label": forms.TextInput(
+                attrs={
+                    "class": "block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
+                    "placeholder": "Acme SEO (optional)",
+                }
+            ),
         }
         labels = {
-            'sitemap_url': 'Sitemap URL'
+            "sitemap_url": "Sitemap URL",
+            "client_label": "Client label",
         }
+
+    def clean_client_label(self):
+        return (self.cleaned_data.get("client_label") or "").strip()
 
 
 class SitemapSettingsForm(forms.ModelForm):
     class Meta:
         model = Sitemap
-        fields = ['pages_per_review', 'review_cadence']
+        fields = ["client_label", "pages_per_review", "review_cadence", "is_active"]
         widgets = {
-            'pages_per_review': forms.NumberInput(attrs={
-                'class': 'block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
-                'min': '1',
-                'max': '50'
-            }),
-            'review_cadence': forms.Select(attrs={
-                'class': 'block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm'
-            })
+            "client_label": forms.TextInput(
+                attrs={
+                    "class": "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
+                    "placeholder": "Client label",
+                }
+            ),
+            "pages_per_review": forms.NumberInput(
+                attrs={
+                    "class": "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
+                    "min": "1",
+                    "max": "50",
+                }
+            ),
+            "review_cadence": forms.Select(
+                attrs={
+                    "class": "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                }
+            ),
+            "is_active": forms.CheckboxInput(
+                attrs={
+                    "class": "w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                }
+            ),
         }
         labels = {
-            'pages_per_review': 'Pages per review email',
-            'review_cadence': 'Review cadence'
+            "client_label": "Client label",
+            "pages_per_review": "Pages per review email",
+            "review_cadence": "Review cadence",
+            "is_active": "Active",
         }
+
+    def clean_client_label(self):
+        return (self.cleaned_data.get("client_label") or "").strip()

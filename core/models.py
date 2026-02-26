@@ -29,6 +29,12 @@ class Profile(BaseModel):
         default="",
         help_text="The user's Stripe customer id, if it exists",
     )
+    stripe_plan_key = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Current normalized billing plan key derived from Stripe",
+    )
 
     state = models.CharField(
         max_length=255,
@@ -161,6 +167,12 @@ class Sitemap(BaseModel):
     sitemap_url = models.URLField(
         help_text="The sitemap text",
     )
+    client_label = models.CharField(
+        max_length=120,
+        blank=True,
+        default="",
+        help_text="Optional client/workspace label used for grouping sites",
+    )
     pages_per_review = models.PositiveIntegerField(
         default=1, help_text="Number of pages to review per email"
     )
@@ -202,6 +214,15 @@ class Page(BaseModel):
     )
     reviewed = models.BooleanField(default=False)
     reviewed_at = models.DateTimeField(null=True, blank=True)
+    last_review_email_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Last time this page was included in a review email queue",
+    )
+    review_queue_attempts = models.PositiveIntegerField(
+        default=0,
+        help_text="How many queue cycles included this page in review emails",
+    )
     needs_review = models.BooleanField(
         default=True, help_text="Whether this page needs to be reviewed"
     )

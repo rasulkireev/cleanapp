@@ -8,7 +8,7 @@
 
 {% block content %}
   <div class="container px-4 py-8 mx-auto max-w-3xl bg-white lg:min-w-0 md:pt-10 lg:flex-1" data-controller="sitemap">
-    {% if not sitemaps %}
+    {% if active_site_count == 0 %}
     <div class="fixed inset-0 z-50 bg-gray-500 bg-opacity-75 backdrop-blur-sm" aria-hidden="true" data-sitemap-target="onboardingOverlay"></div>
 
     <div class="overflow-y-auto fixed inset-0 z-50" data-sitemap-target="onboardingModal">
@@ -49,6 +49,13 @@
                   </div>
                   <p class="mt-2 text-xs text-gray-500">Enter the full URL to your sitemap (e.g., https://example.com/sitemap.xml)</p>
                 </div>
+                <div>
+                  {{ form.client_label.errors | safe }}
+                  <label for="{{ form.client_label.id_for_label }}" class="block text-sm font-medium text-gray-700">Client label (optional)</label>
+                  <div class="mt-1">
+                    {{ form.client_label }}
+                  </div>
+                </div>
               </div>
 
               <div class="flex gap-3 justify-end mt-6">
@@ -59,7 +66,7 @@
                 >
                   Skip Onboarding
                 </button>
-                <button type="submit" class="inline-flex justify-center px-6 py-3 w-full text-base font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:text-sm">
+                <button type="submit" class="inline-flex justify-center px-6 py-3 w-full text-base font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:text-sm disabled:cursor-not-allowed disabled:bg-gray-400" {% if site_limit_reached %}disabled{% endif %}>
                   Add Sitemap
                 </button>
               </div>
@@ -73,12 +80,13 @@
     <div class="p-4 border-b border-gray-200 sm:p-6 lg:p-8">
       <div class="flex justify-between items-center">
         <h1 class="flex-1 pt-2 text-xl font-medium">My Sitemaps</h1>
-        {% if sitemaps %}
+        {% if active_site_count > 0 %}
         <button
           type="button"
           data-action="click->sitemap#toggleForm"
           data-sitemap-target="toggleButton"
-          class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-400"
+          {% if site_limit_reached %}disabled{% endif %}
         >
           Add Sitemap
         </button>
@@ -86,15 +94,41 @@
         <button
           type="button"
           data-action="click->sitemap#showOnboarding"
-          class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-400"
+          {% if site_limit_reached %}disabled{% endif %}
         >
           Add Sitemap
         </button>
         {% endif %}
       </div>
+      <div class="mt-3 text-sm text-gray-600">
+        {{ active_site_count }} / {{ site_limit }} active site{{ site_limit|pluralize }} used
+        {% if site_limit_reached %}
+        <span class="ml-2 text-red-600">Plan limit reached.</span>
+        <a href="{% url 'pricing' %}" class="ml-1 text-blue-600 hover:text-blue-700">Upgrade</a>
+        {% endif %}
+      </div>
+      <form method="get" class="grid grid-cols-1 gap-3 mt-4 md:grid-cols-3">
+        <div>
+          <label for="client-filter" class="block text-xs font-medium text-gray-600">Client</label>
+          <select id="client-filter" name="client" class="block mt-1 w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            <option value="">All clients</option>
+            {% for client_label in client_options %}
+              <option value="{{ client_label }}" {% if selected_client == client_label %}selected{% endif %}>{{ client_label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label for="site-search" class="block text-xs font-medium text-gray-600">Search by URL or client</label>
+          <div class="flex gap-2 mt-1">
+            <input id="site-search" type="text" name="q" value="{{ search_query }}" placeholder="example.com or client name" class="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+            <button type="submit" class="px-3 py-2 text-sm font-medium text-white bg-gray-700 rounded-md hover:bg-gray-800">Filter</button>
+          </div>
+        </div>
+      </form>
     </div>
 
-    {% if sitemaps %}
+    {% if active_site_count > 0 %}
     <div class="hidden px-6 py-4" data-sitemap-target="formContainer">
       <div class="flex flex-col">
         <div class="mt-5 md:mt-0">
@@ -110,6 +144,11 @@
                     {{ form.sitemap_url }}
                     <p class="mt-2 text-sm text-gray-500">Enter the full URL to your sitemap (e.g., https://example.com/sitemap.xml)</p>
                   </div>
+                  <div class="col-span-6">
+                    {{ form.client_label.errors | safe }}
+                    <label for="{{ form.client_label.id_for_label }}" class="block text-sm font-medium text-gray-700">Client label (optional)</label>
+                    {{ form.client_label }}
+                  </div>
                 </div>
               </div>
               <div class="flex gap-2 justify-end px-2 mt-6">
@@ -120,7 +159,7 @@
                 >
                   Cancel
                 </button>
-                <button type="submit" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                <button type="submit" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md border border-transparent shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-400" {% if site_limit_reached %}disabled{% endif %}>
                   Add Sitemap
                 </button>
               </div>
@@ -143,9 +182,12 @@
                       {{ sitemap.sitemap_url }}
                     </a>
                   </p>
-                  <p class="mt-1 text-sm text-gray-500">
-                    Added on {{ sitemap.created_at|date:"M d, Y" }} at {{ sitemap.created_at|time:"h:i A" }}
-                  </p>
+                  <div class="mt-1 flex gap-2 items-center text-sm text-gray-500">
+                    <span>Added on {{ sitemap.created_at|date:"M d, Y" }} at {{ sitemap.created_at|time:"h:i A" }}</span>
+                    <span class="inline-flex px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-full">
+                      {% if sitemap.client_label %}{{ sitemap.client_label }}{% else %}Unlabeled{% endif %}
+                    </span>
+                  </div>
                 </div>
                 <div class="flex flex-shrink-0 gap-2 items-center ml-4">
                   <button
@@ -154,7 +196,7 @@
                     data-sitemap-id="{{ sitemap.id }}"
                     data-sitemap-url="{{ sitemap.sitemap_url }}"
                     class="p-2 text-red-600 rounded-md transition-colors hover:text-red-900 hover:bg-red-50"
-                    title="Delete sitemap"
+                    title="Archive sitemap"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -168,6 +210,8 @@
                 </div>
               </div>
             </li>
+            {% empty %}
+            <li class="px-6 py-8 text-sm text-center text-gray-500">No active sitemaps match the current filters.</li>
             {% endfor %}
           </ul>
         </div>

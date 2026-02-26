@@ -8,7 +8,7 @@ import posthog
 import requests
 from bs4 import BeautifulSoup
 from django.conf import settings
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 from django_q.tasks import async_task
 
@@ -411,29 +411,39 @@ def send_page_email_to_profile(profile_id: int) -> str:
     from django.urls import reverse
     from django.utils.html import strip_tags
 
-    from core.models import EmailPreference, EmailSent, Page, Profile, Sitemap
+    from core.email_digest import build_client_groups, get_digest_period_label
+    from core.models import EmailPreference, EmailSent, Profile, Sitemap
+    from core.review_queue import get_due_pages_queryset, reserve_pages_for_review
 
     try:
         profile = Profile.objects.get(id=profile_id)
     except Profile.DoesNotExist:
         return f"Profile with id {profile_id} not found."
 
-    sitemaps = Sitemap.objects.filter(profile=profile)
+    active_sitemaps = list(Sitemap.objects.filter(profile=profile, is_active=True))
 
-    if not sitemaps.exists():
+    if not active_sitemaps:
         return f"No sitemaps found for profile {profile_id}."
+
+    cadences = {sitemap.review_cadence for sitemap in active_sitemaps}
+    digest_period_label = get_digest_period_label(cadences)
 
     sitemaps_with_pages = []
     total_pages_collected = 0
+    total_due_pages = 0
+    sites_with_due_pages = 0
 
-    for sitemap in sitemaps:
-        unreviewed_pages = Page.objects.filter(
-            sitemap=sitemap, reviewed=False, needs_review=True
-        ).order_by("?")[: sitemap.pages_per_review]
+    for sitemap in active_sitemaps:
+        due_pages_count = get_due_pages_queryset(sitemap).count()
+        total_due_pages += due_pages_count
+        if due_pages_count > 0:
+            sites_with_due_pages += 1
 
-        if unreviewed_pages.exists():
+        pages_for_review = reserve_pages_for_review(sitemap)
+
+        if pages_for_review:
             pages_list = []
-            for page in unreviewed_pages:
+            for page in pages_for_review:
                 metadata = fetch_page_metadata(page.url)
 
                 page.title = metadata.get("title")
@@ -456,27 +466,48 @@ def send_page_email_to_profile(profile_id: int) -> str:
                 pages_list.append(page)
 
             sitemaps_with_pages.append(
-                {"sitemap": sitemap, "pages": pages_list, "pages_count": len(pages_list)}
+                {
+                    "sitemap": sitemap,
+                    "pages": pages_list,
+                    "pages_count": len(pages_list),
+                    "due_pages_count": due_pages_count,
+                }
             )
             total_pages_collected += len(pages_list)
 
     if not sitemaps_with_pages:
         return f"No unreviewed pages found for profile {profile_id}."
 
+    client_groups = build_client_groups(sitemaps_with_pages)
+
     context = {
         "profile": profile,
         "user": profile.user,
+        "client_groups": client_groups,
         "sitemaps_with_pages": sitemaps_with_pages,
         "total_sitemaps": len(sitemaps_with_pages),
+        "total_active_sites": len(active_sitemaps),
+        "total_clients": len(client_groups),
+        "sites_with_due_pages": sites_with_due_pages,
+        "total_due_pages": total_due_pages,
         "total_pages": total_pages_collected,
+        "digest_period_label": digest_period_label,
+        "is_weekly_summary": digest_period_label == "Weekly summary",
     }
 
     html_content = render_to_string("emails/page_review.html", context)
     text_content = strip_tags(html_content)
 
-    subject = (
-        f"Time to Review {total_pages_collected} Page{'s' if total_pages_collected > 1 else ''}"
-    )
+    if digest_period_label == "Weekly summary":
+        subject = f"Weekly Summary: {total_due_pages} Due Page{'s' if total_due_pages != 1 else ''}"
+    elif digest_period_label == "Monthly summary":
+        subject = (
+            f"Monthly Summary: {total_due_pages} Due Page{'s' if total_due_pages != 1 else ''}"
+        )
+    else:
+        subject = (
+            f"Time to Review {total_pages_collected} Page{'s' if total_pages_collected > 1 else ''}"
+        )
 
     email_preferences = EmailPreference.objects.filter(profile=profile, enabled=True).values_list(
         "email_address", flat=True
@@ -502,7 +533,11 @@ def send_page_email_to_profile(profile_id: int) -> str:
             "Page review email sent",
             email=profile.user.email,
             profile_id=profile_id,
+            digest_period_label=digest_period_label,
             total_sitemaps=len(sitemaps_with_pages),
+            total_active_sites=len(active_sitemaps),
+            total_clients=len(client_groups),
+            total_due_pages=total_due_pages,
             total_pages=total_pages_collected,
             recipient_count=len(recipient_list),
             recipients=recipient_list,
@@ -523,9 +558,9 @@ def schedule_review_emails() -> str:
     from core.models import EmailSent, Profile
     from core.utils import should_send_email_to_profile
 
-    profiles_with_sitemaps = Profile.objects.annotate(sitemap_count=Count("sitemap")).filter(
-        sitemap_count__gt=0
-    )
+    profiles_with_sitemaps = Profile.objects.annotate(
+        sitemap_count=Count("sitemap", filter=Q(sitemap__is_active=True))
+    ).filter(sitemap_count__gt=0)
 
     emails_scheduled = 0
     profiles_checked = 0
