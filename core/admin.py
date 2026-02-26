@@ -14,14 +14,15 @@ class BlogPostAdmin(admin.ModelAdmin):
 class SitemapAdmin(admin.ModelAdmin):
     list_display = (
         "sitemap_url",
+        "client_label",
         "profile",
         "pages_per_review",
         "review_cadence",
         "is_active",
         "created_at",
     )
-    list_filter = ("review_cadence", "is_active", "created_at")
-    search_fields = ("sitemap_url", "profile__user__email")
+    list_filter = ("client_label", "review_cadence", "is_active", "created_at")
+    search_fields = ("sitemap_url", "client_label", "profile__user__email")
     list_editable = ("is_active",)
 
 
@@ -35,6 +36,8 @@ class PageAdmin(admin.ModelAdmin):
         "needs_review",
         "reviewed",
         "reviewed_at",
+        "last_review_email_sent_at",
+        "review_queue_attempts",
         "created_at",
     )
     list_filter = ("is_active", "needs_review", "reviewed", "created_at")

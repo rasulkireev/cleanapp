@@ -11,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.cache import cache
+from django.db.models import Q
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
@@ -20,6 +21,14 @@ from django.views.generic import DetailView, ListView, TemplateView, UpdateView
 from django_q.tasks import async_task
 
 from cleanapp.utils import get_cleanapp_logger
+from core.billing import (
+    get_active_site_count,
+    get_available_plans,
+    get_plan_config,
+    get_site_limit_for_profile,
+    get_trial_days_for_plan,
+    normalize_plan_key,
+)
 from core.choices import ProfileStates
 from core.forms import ProfileUpdateForm, SitemapForm, SitemapSettingsForm
 from core.models import BlogPost, Feedback, Page, Profile, Sitemap
@@ -32,9 +41,14 @@ logger = get_cleanapp_logger(__name__)
 
 
 def get_price_id_for_plan(plan):
-    plan_key = (plan or "").lower()
+    plan_key = normalize_plan_key(plan)
+    plan_config = get_plan_config(plan_key)
+
+    if plan_config and plan_config.get("price_id"):
+        return plan_key, plan_config["price_id"]
+
     price_id = settings.STRIPE_PRICE_IDS.get(plan_key) or None
-    return price_id
+    return plan_key, price_id
 
 
 def get_or_create_stripe_customer(profile, user):
@@ -148,17 +162,58 @@ class HomeView(LoginRequiredMixin, SuccessMessageMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["form"] = SitemapForm()
-        context["sitemaps"] = Sitemap.objects.filter(profile=self.request.user.profile).order_by(
-            "-created_at"
+        profile = self.request.user.profile
+
+        selected_client = (self.request.GET.get("client") or "").strip()
+        search_query = (self.request.GET.get("q") or "").strip()
+
+        all_active_sitemaps = Sitemap.objects.filter(profile=profile, is_active=True)
+        sitemaps = all_active_sitemaps.order_by("-created_at")
+
+        if selected_client:
+            sitemaps = sitemaps.filter(client_label__iexact=selected_client)
+
+        if search_query:
+            sitemaps = sitemaps.filter(
+                Q(sitemap_url__icontains=search_query) | Q(client_label__icontains=search_query)
+            )
+
+        client_options = list(
+            all_active_sitemaps.exclude(client_label="")
+            .values_list("client_label", flat=True)
+            .distinct()
+            .order_by("client_label")
         )
+
+        active_site_count = get_active_site_count(profile)
+        site_limit = get_site_limit_for_profile(profile)
+
+        context["form"] = SitemapForm()
+        context["sitemaps"] = sitemaps
+        context["client_options"] = client_options
+        context["selected_client"] = selected_client
+        context["search_query"] = search_query
+        context["active_site_count"] = active_site_count
+        context["site_limit"] = site_limit
+        context["site_limit_reached"] = active_site_count >= site_limit
         return context
 
     def post(self, request, *args, **kwargs):
+        profile = request.user.profile
+        active_site_count = get_active_site_count(profile)
+        site_limit = get_site_limit_for_profile(profile)
+
+        if active_site_count >= site_limit:
+            messages.error(
+                request,
+                f"Your current plan allows up to {site_limit} active site(s). Upgrade to add more.",
+            )
+            return redirect("pricing")
+
         form = SitemapForm(request.POST)
         if form.is_valid():
             sitemap = form.save(commit=False)
-            sitemap.profile = request.user.profile
+            sitemap.profile = profile
             sitemap.save()
 
             logger.info(
@@ -306,6 +361,8 @@ class UserSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
                     profile_id=request.user.profile.id,
                     email=request.user.email,
                     sitemap_id=sitemap.id,
+                    client_label=sitemap.client_label,
+                    is_active=sitemap.is_active,
                     pages_per_review=sitemap.pages_per_review,
                     review_cadence=sitemap.review_cadence,
                 )
@@ -329,15 +386,23 @@ class PricingView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["plans"] = get_available_plans()
+        context["free_site_limit"] = settings.CLEANAPP_FREE_SITE_LIMIT
 
         if self.request.user.is_authenticated:
             try:
                 profile = self.request.user.profile
                 context["has_pro_subscription"] = profile.has_active_subscription
+                context["current_plan_key"] = normalize_plan_key(profile.stripe_plan_key)
+                context["current_site_limit"] = get_site_limit_for_profile(profile)
             except Profile.DoesNotExist:
                 context["has_pro_subscription"] = False
+                context["current_plan_key"] = ""
+                context["current_site_limit"] = settings.CLEANAPP_FREE_SITE_LIMIT
         else:
             context["has_pro_subscription"] = False
+            context["current_plan_key"] = ""
+            context["current_site_limit"] = settings.CLEANAPP_FREE_SITE_LIMIT
 
         return context
 
@@ -347,9 +412,9 @@ class PricingView(TemplateView):
 def create_checkout_session(request, pk, plan):
     user = request.user
     profile = user.profile
-    price_id = get_price_id_for_plan(plan)
+    plan_key, price_id = get_price_id_for_plan(plan)
     if not price_id:
-        logger.warning("Stripe price id not configured for plan", plan=plan, user_id=user.id)
+        logger.warning("Stripe price id not configured for plan", plan=plan_key, user_id=user.id)
         messages.error(request, "Unable to find pricing for the selected plan.")
         return redirect("pricing")
 
@@ -373,6 +438,18 @@ def create_checkout_session(request, pk, plan):
     cancel_params = {"payment": "failed"}
     cancel_url = f"{base_cancel_url}?{urlencode(cancel_params)}"
 
+    trial_days = get_trial_days_for_plan(plan_key)
+    should_apply_trial = trial_days > 0 and profile.state in {
+        ProfileStates.STRANGER,
+        ProfileStates.SIGNED_UP,
+        ProfileStates.TRIAL_ENDED,
+        ProfileStates.CHURNED,
+    }
+
+    subscription_data = {"metadata": {"user_id": user.id, "plan": plan_key}}
+    if should_apply_trial:
+        subscription_data["trial_period_days"] = trial_days
+
     session_params = {
         "customer": customer.id,
         "payment_method_types": ["card"],
@@ -395,9 +472,9 @@ def create_checkout_session(request, pk, plan):
             "user_id": user.id,
             "pk": pk,
             "price_id": price_id,
-            "plan": plan,
+            "plan": plan_key,
         },
-        "subscription_data": {"metadata": {"user_id": user.id, "plan": plan}},
+        "subscription_data": subscription_data,
     }
 
     try:
@@ -406,7 +483,7 @@ def create_checkout_session(request, pk, plan):
         logger.error(
             "Stripe checkout session creation failed",
             profile_id=profile.id,
-            plan=plan,
+            plan=plan_key,
             error=str(exc),
         )
         messages.error(request, "Unable to start checkout. Please try again.")

@@ -2,6 +2,7 @@ import stripe
 from django.conf import settings
 
 from cleanapp.utils import get_cleanapp_logger
+from core.billing import normalize_plan_key, resolve_plan_key_from_price_id
 from core.choices import ProfileStates
 from core.models import Profile
 
@@ -26,16 +27,49 @@ def get_profile_for_customer(customer_id, metadata=None):
     return profile
 
 
-def update_profile_stripe_ids(profile, customer_id=None, subscription_id=None):
+def update_profile_stripe_ids(profile, customer_id=None, subscription_id=None, plan_key=None):
     update_fields = []
-    if customer_id and profile.stripe_customer_id != customer_id:
+
+    if customer_id is not None and profile.stripe_customer_id != customer_id:
         profile.stripe_customer_id = customer_id
         update_fields.append("stripe_customer_id")
-    if subscription_id and profile.stripe_subscription_id != subscription_id:
+
+    if subscription_id is not None and profile.stripe_subscription_id != subscription_id:
         profile.stripe_subscription_id = subscription_id
         update_fields.append("stripe_subscription_id")
+
+    if plan_key is not None:
+        normalized_plan_key = normalize_plan_key(plan_key)
+        if normalized_plan_key != profile.stripe_plan_key:
+            profile.stripe_plan_key = normalized_plan_key
+            update_fields.append("stripe_plan_key")
+
     if update_fields:
         profile.save(update_fields=update_fields)
+
+
+def infer_plan_key(subscription_data=None, metadata=None):
+    metadata = metadata or {}
+
+    metadata_plan_key = normalize_plan_key(metadata.get("plan"))
+    if metadata_plan_key:
+        return metadata_plan_key
+
+    subscription_data = subscription_data or {}
+
+    subscription_metadata = subscription_data.get("metadata") or {}
+    subscription_metadata_plan_key = normalize_plan_key(subscription_metadata.get("plan"))
+    if subscription_metadata_plan_key:
+        return subscription_metadata_plan_key
+
+    items = subscription_data.get("items", {}).get("data", [])
+    for item in items:
+        price_id = (item.get("price") or {}).get("id")
+        plan_key = resolve_plan_key_from_price_id(price_id)
+        if plan_key:
+            return plan_key
+
+    return ""
 
 
 def get_subscription_target_state(subscription_data, previous_status=None):
@@ -69,6 +103,7 @@ def handle_created_subscription(event):
     subscription_data = event["data"]["object"]
     customer_id = subscription_data.get("customer")
     subscription_id = subscription_data.get("id")
+    plan_key = infer_plan_key(subscription_data=subscription_data) or None
 
     profile = get_profile_for_customer(customer_id, subscription_data.get("metadata", {}))
     if not profile:
@@ -81,7 +116,12 @@ def handle_created_subscription(event):
         )
         return
 
-    update_profile_stripe_ids(profile, customer_id=customer_id, subscription_id=subscription_id)
+    update_profile_stripe_ids(
+        profile,
+        customer_id=customer_id,
+        subscription_id=subscription_id,
+        plan_key=plan_key,
+    )
 
     target_state = get_subscription_target_state(subscription_data)
     if target_state:
@@ -95,6 +135,7 @@ def handle_created_subscription(event):
                 "status": subscription_data.get("status"),
                 "cancel_at_period_end": subscription_data.get("cancel_at_period_end"),
                 "trial_end": subscription_data.get("trial_end"),
+                "plan_key": plan_key,
             },
         )
     else:
@@ -103,6 +144,7 @@ def handle_created_subscription(event):
             profile_id=profile.id,
             subscription_id=subscription_id,
             status=subscription_data.get("status"),
+            plan_key=plan_key,
             event_id=event_id,
         )
 
@@ -111,6 +153,7 @@ def handle_created_subscription(event):
         profile_id=profile.id,
         webhook="handle_created_subscription",
         subscription_id=subscription_id,
+        plan_key=plan_key,
         event_id=event_id,
     )
 
@@ -120,6 +163,7 @@ def handle_updated_subscription(event):
     subscription_data = event["data"]["object"]
     customer_id = subscription_data.get("customer")
     subscription_id = subscription_data.get("id")
+    plan_key = infer_plan_key(subscription_data=subscription_data) or None
 
     logger.info(
         "Subscription updated",
@@ -139,7 +183,12 @@ def handle_updated_subscription(event):
         )
         return
 
-    update_profile_stripe_ids(profile, customer_id=customer_id, subscription_id=subscription_id)
+    update_profile_stripe_ids(
+        profile,
+        customer_id=customer_id,
+        subscription_id=subscription_id,
+        plan_key=plan_key,
+    )
 
     previous_attributes = event.get("data", {}).get("previous_attributes", {}) or {}
     previous_status = previous_attributes.get("status")
@@ -159,6 +208,7 @@ def handle_updated_subscription(event):
                 "current_period_end": subscription_data.get("current_period_end"),
                 "cancellation_details": subscription_data.get("cancellation_details"),
                 "trial_end": subscription_data.get("trial_end"),
+                "plan_key": plan_key,
             },
         )
 
@@ -168,6 +218,7 @@ def handle_updated_subscription(event):
             subscription_id=subscription_id,
             target_state=target_state,
             status=subscription_data.get("status"),
+            plan_key=plan_key,
         )
     else:
         logger.info(
@@ -175,6 +226,7 @@ def handle_updated_subscription(event):
             profile_id=profile.id,
             subscription_id=subscription_id,
             status=subscription_data.get("status"),
+            plan_key=plan_key,
         )
 
 
@@ -212,8 +264,7 @@ def handle_deleted_subscription(event):
         },
     )
 
-    profile.stripe_subscription_id = ""
-    profile.save(update_fields=["stripe_subscription_id"])
+    update_profile_stripe_ids(profile, subscription_id="", plan_key="")
 
     logger.info(
         "Subscription deleted for profile.",
@@ -235,6 +286,9 @@ def handle_checkout_completed(event):
 
     metadata = checkout_data.get("metadata", {})
     price_id = metadata.get("price_id")
+    plan_key = infer_plan_key(metadata=metadata) or None
+    if not plan_key:
+        plan_key = resolve_plan_key_from_price_id(price_id) or None
 
     logger.info(
         "Checkout session completed",
@@ -266,7 +320,12 @@ def handle_checkout_completed(event):
         )
         return
 
-    update_profile_stripe_ids(profile, customer_id=customer_id, subscription_id=subscription_id)
+    update_profile_stripe_ids(
+        profile,
+        customer_id=customer_id,
+        subscription_id=subscription_id,
+        plan_key=plan_key,
+    )
 
     if mode == "payment":
         amount_total = checkout_data.get("amount_total")
@@ -283,6 +342,7 @@ def handle_checkout_completed(event):
                 "amount": amount_total,
                 "currency": currency,
                 "price_id": price_id,
+                "plan_key": plan_key,
                 "stripe_event_id": event_id,
             },
         )
@@ -295,6 +355,7 @@ def handle_checkout_completed(event):
             amount=amount_total,
             currency=currency,
             metadata=metadata,
+            plan_key=plan_key,
         )
     else:
         logger.info(
@@ -302,6 +363,7 @@ def handle_checkout_completed(event):
             checkout_id=checkout_id,
             mode=mode,
             profile_id=profile.id,
+            plan_key=plan_key,
         )
 
 

@@ -53,7 +53,7 @@ export default class extends Controller {
         const sitemapId = button.dataset.sitemapId;
         const sitemapUrl = button.dataset.sitemapUrl;
 
-        if (!confirm(`Are you sure you want to delete this sitemap?\n\n${sitemapUrl}`)) {
+        if (!confirm(`Archive this sitemap?\n\n${sitemapUrl}\n\nYou can re-enable it from Settings.`)) {
             return;
         }
 
@@ -81,11 +81,11 @@ export default class extends Controller {
 
                 showMessage(data.message, "success");
             } else {
-                showMessage(data.message || "Failed to delete sitemap", "error");
+                showMessage(data.message || "Failed to archive sitemap", "error");
             }
         } catch (error) {
-            console.error("Error deleting sitemap:", error);
-            showMessage("An error occurred while deleting the sitemap", "error");
+            console.error("Error archiving sitemap:", error);
+            showMessage("An error occurred while archiving the sitemap", "error");
         }
     }
 

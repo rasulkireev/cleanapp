@@ -209,6 +209,25 @@
             {% with form=sitemap_forms|lookup:sitemap.id %}
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
+                <label for="id_sitemap_{{ sitemap.id }}-client_label" class="block mb-1 text-sm font-medium text-gray-700">
+                  Client label
+                </label>
+                {{ form.client_label }}
+                <p class="mt-1 text-xs text-gray-500">Group sites by client/workspace name</p>
+              </div>
+
+              <div>
+                <label for="id_sitemap_{{ sitemap.id }}-is_active" class="block mb-1 text-sm font-medium text-gray-700">
+                  Archive status
+                </label>
+                <div class="flex gap-2 items-center mt-2">
+                  {{ form.is_active }}
+                  <span class="text-sm text-gray-600">Active sitemap</span>
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Disable to archive this sitemap and remove it from the active dashboard.</p>
+              </div>
+
+              <div>
                 <label for="id_sitemap_{{ sitemap.id }}-pages_per_review" class="block mb-1 text-sm font-medium text-gray-700">
                   Pages per review email
                 </label>

@@ -47,7 +47,7 @@ def should_send_email_to_profile(profile, last_email_time, current_time_in_user_
     if not last_email_time:
         return True
 
-    sitemaps = Sitemap.objects.filter(profile=profile)
+    sitemaps = Sitemap.objects.filter(profile=profile, is_active=True)
     if not sitemaps.exists():
         return False
 

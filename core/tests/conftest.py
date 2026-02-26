@@ -8,6 +8,14 @@ def pytest_configure(config):
     )
 
 
+@pytest.fixture(autouse=True)
+def disable_background_tasks(monkeypatch):
+    from core import models, signals
+
+    monkeypatch.setattr(models, "async_task", lambda *args, **kwargs: None)
+    monkeypatch.setattr(signals, "async_task", lambda *args, **kwargs: None)
+
+
 @pytest.fixture
 def user(django_user_model):
     return django_user_model.objects.create_user(

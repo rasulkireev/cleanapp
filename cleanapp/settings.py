@@ -484,12 +484,51 @@ STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
 STRIPE_LIVE_MODE = ENVIRONMENT == "prod"
 STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
 STRIPE_WEBHOOK_UUID = env("WEBHOOK_UUID", default="")
+
+# Legacy price ids (kept for backwards compatibility with existing env vars).
 STRIPE_PRICE_ID_MONTHLY = env("STRIPE_PRICE_ID_MONTHLY", default="")
 STRIPE_PRICE_ID_YEARLY = env("STRIPE_PRICE_ID_YEARLY", default="")
-STRIPE_PRICE_IDS = {
-    "monthly": STRIPE_PRICE_ID_MONTHLY,
-    "yearly": STRIPE_PRICE_ID_YEARLY,
+
+# Cleanapp billing plans (agency ICP defaults).
+STRIPE_PRICE_ID_STARTER = env("STRIPE_PRICE_ID_STARTER", default=STRIPE_PRICE_ID_MONTHLY)
+STRIPE_PRICE_ID_AGENCY = env("STRIPE_PRICE_ID_AGENCY", default=STRIPE_PRICE_ID_YEARLY)
+
+CLEANAPP_FREE_SITE_LIMIT = env.int("CLEANAPP_FREE_SITE_LIMIT", default=1)
+CLEANAPP_STARTER_SITE_LIMIT = env.int("CLEANAPP_STARTER_SITE_LIMIT", default=5)
+CLEANAPP_AGENCY_SITE_LIMIT = env.int("CLEANAPP_AGENCY_SITE_LIMIT", default=30)
+
+STRIPE_TRIAL_DAYS_DEFAULT = env.int("STRIPE_TRIAL_DAYS_DEFAULT", default=14)
+STRIPE_TRIAL_DAYS_STARTER = env.int(
+    "STRIPE_TRIAL_DAYS_STARTER", default=STRIPE_TRIAL_DAYS_DEFAULT
+)
+STRIPE_TRIAL_DAYS_AGENCY = env.int("STRIPE_TRIAL_DAYS_AGENCY", default=STRIPE_TRIAL_DAYS_DEFAULT)
+
+CLEANAPP_BILLING_PLANS = {
+    "starter": {
+        "display_name": "Starter",
+        "price_id": STRIPE_PRICE_ID_STARTER,
+        "site_limit": CLEANAPP_STARTER_SITE_LIMIT,
+        "trial_days": STRIPE_TRIAL_DAYS_STARTER,
+    },
+    "agency": {
+        "display_name": "Agency",
+        "price_id": STRIPE_PRICE_ID_AGENCY,
+        "site_limit": CLEANAPP_AGENCY_SITE_LIMIT,
+        "trial_days": STRIPE_TRIAL_DAYS_AGENCY,
+    },
 }
+
+STRIPE_PRICE_IDS = {
+    plan_key: plan_data["price_id"]
+    for plan_key, plan_data in CLEANAPP_BILLING_PLANS.items()
+    if plan_data.get("price_id")
+}
+
+# Legacy aliases so old checkout URLs keep working during rollout.
+if STRIPE_PRICE_ID_MONTHLY:
+    STRIPE_PRICE_IDS["monthly"] = STRIPE_PRICE_ID_MONTHLY
+if STRIPE_PRICE_ID_YEARLY:
+    STRIPE_PRICE_IDS["yearly"] = STRIPE_PRICE_ID_YEARLY
 
 
 MJML_BACKEND_MODE = "httpserver"
